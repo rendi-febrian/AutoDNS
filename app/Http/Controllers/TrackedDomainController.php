@@ -201,17 +201,36 @@ class TrackedDomainController extends Controller
 
     public function resolveIps(): RedirectResponse
     {
-        $domains = TrackedDomain::all();
+        $domains = TrackedDomain::with('dnsRecord.zone.cloudflareAccount')->get();
         if ($domains->isEmpty()) {
             return back()->with('error', 'No tracked domains to resolve.');
         }
 
         $resolved = 0;
+        $cfResolved = 0;
         $failed = 0;
 
         foreach ($domains as $domain) {
             $records = @dns_get_record($domain->domain_name, DNS_A);
             $ip = $records[0]['ip'] ?? null;
+
+            if ($ip && CloudflareService::isCloudflareIp($ip) && $domain->dnsRecord) {
+                $account = $domain->dnsRecord->zone?->cloudflareAccount;
+                if ($account) {
+                    $cf = new CloudflareService($account);
+                    $result = $cf->getDnsRecord(
+                        $domain->dnsRecord->zone->zone_id,
+                        $domain->dnsRecord->record_id
+                    );
+                    $realIp = $result['result']['content'] ?? null;
+                    if ($realIp) {
+                        $domain->update(['ip_address' => $realIp]);
+                        $resolved++;
+                        $cfResolved++;
+                        continue;
+                    }
+                }
+            }
 
             if ($ip) {
                 $domain->update(['ip_address' => $ip]);
@@ -222,7 +241,8 @@ class TrackedDomainController extends Controller
         }
 
         $msg = "Resolved {$resolved} domains via DNS.";
-        if ($failed > 0) $msg .= " {$failed} failed (no A record found).";
+        if ($cfResolved > 0) $msg .= " {$cfResolved} dari Cloudflare API (origin IP).";
+        if ($failed > 0) $msg .= " {$failed} failed.";
 
         return back()->with('success', $msg);
     }
