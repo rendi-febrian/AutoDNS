@@ -201,50 +201,26 @@ if command -v certbot &>/dev/null; then
         fi
     fi
 
-    # Pasang SSL ke vhost (port 26298)
+    # Pasang SSL ke vhost (langsung di port 26298, gak sentuh port 443)
     if [[ "$CERTBOT_OK" == true ]]; then
         if [[ "$WS_PLUGIN" == "nginx" ]] && [[ -f /etc/nginx/sites-available/autodns ]]; then
-            if ! grep -q "listen 443 ssl;" /etc/nginx/sites-available/autodns; then
-                sudo sed -i "s|listen 80;|listen 80;\n    listen 443 ssl;|" /etc/nginx/sites-available/autodns
-            fi
             if ! grep -q "ssl_certificate " /etc/nginx/sites-available/autodns; then
+                sudo sed -i "s|listen ${APP_PORT};|listen ${APP_PORT} ssl;\n    listen 80;|" /etc/nginx/sites-available/autodns
                 sudo sed -i "s|server_name .*;|&\n    ssl_certificate ${LE_DIR}/fullchain.pem;\n    ssl_certificate_key ${LE_DIR}/privkey.pem;|" /etc/nginx/sites-available/autodns
             fi
-            ok "Nginx SSL config added"
+            ok "Nginx SSL added on port ${APP_PORT}"
 
         elif [[ "$WS_PLUGIN" == "apache" ]] && [[ -f /etc/apache2/sites-available/autodns.conf ]]; then
             sudo a2enmod ssl >/dev/null 2>&1 || true
-            if ! grep -q "^Listen 443" /etc/apache2/ports.conf 2>/dev/null; then
-                echo "Listen 443" | sudo tee -a /etc/apache2/ports.conf >/dev/null
+            if ! grep -q "SSLEngine" /etc/apache2/sites-available/autodns.conf; then
+                sudo sed -i "/ServerName /a\    SSLEngine on\n    SSLCertificateFile ${LE_DIR}/fullchain.pem\n    SSLCertificateKeyFile ${LE_DIR}/privkey.pem" /etc/apache2/sites-available/autodns.conf
             fi
-            # Append SSL vhost (lebih aman daripada sed rumit)
-            if ! grep -q "\*:443" /etc/apache2/sites-available/autodns.conf 2>/dev/null; then
-                cat <<EOF | sudo tee -a /etc/apache2/sites-available/autodns.conf >/dev/null
-
-<VirtualHost *:443>
-    ServerName ${DOMAIN}
-    DocumentRoot ${APP_DIR}/public
-
-    SSLEngine on
-    SSLCertificateFile ${LE_DIR}/fullchain.pem
-    SSLCertificateKeyFile ${LE_DIR}/privkey.pem
-
-    <Directory ${APP_DIR}/public>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    <FilesMatch \\.php\$>
-        SetHandler "proxy:unix:${PHP_SOCKET}|fcgi://localhost"
-    </FilesMatch>
-
-    ErrorLog \${APACHE_LOG_DIR}/${APP_NAME}_error.log
-    CustomLog \${APACHE_LOG_DIR}/${APP_NAME}_access.log combined
-</VirtualHost>
-EOF
+            # Hapus <VirtualHost *:443> jika ada dari versi sebelumnya
+            if grep -q "\*:443" /etc/apache2/sites-available/autodns.conf 2>/dev/null; then
+                sudo sed -i '/<VirtualHost \*:443>/,/<\/VirtualHost>/d' /etc/apache2/sites-available/autodns.conf
+                ok "Removed old *:443 vhost (conflict avoided)"
             fi
-            ok "Apache SSL config added"
+            ok "Apache SSL added on port ${APP_PORT}"
         fi
 
         sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
@@ -265,15 +241,6 @@ info "Adding domain to tracked domains..."
 cd "$APP_DIR"
 sudo chown -R "${WS_USER}:${WS_USER}" storage database bootstrap/cache 2>/dev/null || true
 sudo -u "$WS_USER" php artisan domain:track "$DOMAIN" --ip="$SERVER_IP"
-
-# ── Rename vhost ke 000- biar priority SSL default ──
-if [[ -f /etc/apache2/sites-available/autodns.conf ]] && [[ ! -f /etc/apache2/sites-available/000-autodns.conf ]]; then
-    sudo mv /etc/apache2/sites-available/autodns.conf /etc/apache2/sites-available/000-autodns.conf
-    sudo a2dissite autodns.conf 2>/dev/null || true
-    sudo a2ensite 000-autodns.conf 2>/dev/null || true
-    sudo systemctl reload apache2 2>/dev/null || true
-    info "Vhost renamed to 000-autodns.conf (SSL priority fixed)"
-fi
 
 echo ""
 ok "Done! ${DOMAIN} is now tracked, SSL-enabled, and will be auto-synced."
