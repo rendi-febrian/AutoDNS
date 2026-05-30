@@ -25,9 +25,9 @@ try_fix() {
     local desc="$1"; shift
     if ! $FIX_MODE; then return 1; fi
     if "$@" 2>/dev/null; then
-        pass "${desc} (fixed)"; ((FIXED++)); return 0
+        pass "${desc} (fixed)"; FIXED=$((FIXED+1)); return 0
     else
-        warn "${desc} — gagal auto-fix. Manual: $*"; ((WARN++)); return 1
+        warn "${desc} — gagal auto-fix. Manual: $*"; WARN=$((WARN+1)); return 1
     fi
 }
 
@@ -56,51 +56,51 @@ detect_ws_user() {
 echo -e "${YELLOW}── Files & Permissions ──${NC}"
 
 if [[ -f "${APP_DIR}/artisan" ]]; then
-    pass "artisan found"; ((PASS++))
+    pass "artisan found"; PASS=$((PASS+1))
 else
     fail "artisan missing — not a Laravel project"; exit 1
 fi
 
 if [[ -f "${APP_DIR}/.env" ]]; then
-    pass ".env exists"; ((PASS++))
+    pass ".env exists"; PASS=$((PASS+1))
 else
     if try_fix ".env missing" cp "${APP_DIR}/.env.example" "${APP_DIR}/.env"; then
-        pass ".env created"; ((PASS++))
+        pass ".env created"; PASS=$((PASS+1))
     else
-        fail ".env missing — cp .env.example .env"; ((FAIL++))
+        fail ".env missing — cp .env.example .env"; FAIL=$((FAIL+1))
     fi
 fi
 
 if grep -q "APP_KEY=" "${APP_DIR}/.env" 2>/dev/null && ! grep -q "APP_KEY=$" "${APP_DIR}/.env" 2>/dev/null; then
-    pass "APP_KEY is set"; ((PASS++))
+    pass "APP_KEY is set"; PASS=$((PASS+1))
 else
     if try_fix "APP_KEY not set" php "${APP_DIR}/artisan" key:generate --force --quiet; then
-        pass "APP_KEY generated"; ((PASS++))
+        pass "APP_KEY generated"; PASS=$((PASS+1))
     else
-        fail "APP_KEY not set — php artisan key:generate"; ((FAIL++))
+        fail "APP_KEY not set — php artisan key:generate"; FAIL=$((FAIL+1))
     fi
 fi
 
 DB_FILE="${APP_DIR}/database/database.sqlite"
 if [[ -f "$DB_FILE" ]]; then
-    pass "SQLite database exists"; ((PASS++))
+    pass "SQLite database exists"; PASS=$((PASS+1))
 else
     if try_fix "database.sqlite missing" cp "${APP_DIR}/database/sample.sqlite" "$DB_FILE"; then
-        pass "database.sqlite created"; ((PASS++))
+        pass "database.sqlite created"; PASS=$((PASS+1))
     else
-        fail "database.sqlite missing"; ((FAIL++))
+        fail "database.sqlite missing"; FAIL=$((FAIL+1))
     fi
 fi
 
 for dir in storage bootstrap/cache database; do
     if [[ -w "${APP_DIR}/${dir}" ]]; then
-        pass "${dir} is writable"; ((PASS++))
+        pass "${dir} is writable"; PASS=$((PASS+1))
     else
         ws_u=$(detect_ws_user)
         if try_fix "${dir} permissions" sudo chown -R "${ws_u}:${ws_u}" "${APP_DIR}/${dir}"; then
-            pass "${dir} permissions fixed"; ((PASS++))
+            pass "${dir} permissions fixed"; PASS=$((PASS+1))
         else
-            fail "${dir} not writable — sudo chown -R ${ws_u}:${ws_u} ${dir}"; ((FAIL++))
+            fail "${dir} not writable — sudo chown -R ${ws_u}:${ws_u} ${dir}"; FAIL=$((FAIL+1))
         fi
     fi
 done
@@ -112,44 +112,44 @@ echo -e "${YELLOW}── Web Server ──${NC}"
 WS=$(detect_ws)
 case "$WS" in
     nginx)
-        pass "Nginx is running"; ((PASS++))
+        pass "Nginx is running"; PASS=$((PASS+1))
         if [[ -f /etc/nginx/sites-enabled/${APP_NAME} ]]; then
-            pass "Nginx vhost enabled"; ((PASS++))
+            pass "Nginx vhost enabled"; PASS=$((PASS+1))
         elif [[ -f /etc/nginx/sites-available/${APP_NAME} ]]; then
             if try_fix "vhost not enabled" sudo ln -sf "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/" && sudo systemctl reload nginx; then
-                pass "Nginx vhost enabled (fixed)"; ((PASS++))
+                pass "Nginx vhost enabled (fixed)"; PASS=$((PASS+1))
             else
-                warn "Vhost exists but not enabled — sudo ln -sf ../sites-available/${APP_NAME} /etc/nginx/sites-enabled/"; ((WARN++))
+                warn "Vhost exists but not enabled — sudo ln -sf ../sites-available/${APP_NAME} /etc/nginx/sites-enabled/"; WARN=$((WARN+1))
             fi
         else
-            fail "Nginx vhost not found — run install.sh"; ((FAIL++))
+            fail "Nginx vhost not found — run install.sh"; FAIL=$((FAIL+1))
         fi
         ;;
     apache)
-        pass "Apache is running"; ((PASS++))
+        pass "Apache is running"; PASS=$((PASS+1))
         if [[ -f /etc/apache2/sites-enabled/${APP_NAME}.conf ]]; then
-            pass "Apache vhost enabled"; ((PASS++))
+            pass "Apache vhost enabled"; PASS=$((PASS+1))
         elif [[ -f /etc/apache2/sites-available/${APP_NAME}.conf ]]; then
             if try_fix "vhost not enabled" sudo a2ensite "${APP_NAME}.conf" && sudo systemctl reload apache2; then
-                pass "Apache vhost enabled (fixed)"; ((PASS++))
+                pass "Apache vhost enabled (fixed)"; PASS=$((PASS+1))
             else
-                warn "Vhost exists but not enabled — sudo a2ensite ${APP_NAME}.conf"; ((WARN++))
+                warn "Vhost exists but not enabled — sudo a2ensite ${APP_NAME}.conf"; WARN=$((WARN+1))
             fi
         else
-            fail "Apache vhost not found — run install.sh"; ((FAIL++))
+            fail "Apache vhost not found — run install.sh"; FAIL=$((FAIL+1))
         fi
         if apache2ctl -M 2>/dev/null | grep -q 'ssl_module'; then
-            pass "Apache SSL module enabled"; ((PASS++))
+            pass "Apache SSL module enabled"; PASS=$((PASS+1))
         else
             if try_fix "SSL module not enabled" sudo a2enmod ssl && sudo systemctl reload apache2; then
-                pass "SSL module enabled (fixed)"; ((PASS++))
+                pass "SSL module enabled (fixed)"; PASS=$((PASS+1))
             else
-                warn "SSL module not enabled — sudo a2enmod ssl"; ((WARN++))
+                warn "SSL module not enabled — sudo a2enmod ssl"; WARN=$((WARN+1))
             fi
         fi
         ;;
     *)
-        fail "No web server detected (nginx/apache)"; ((FAIL++))
+        fail "No web server detected (nginx/apache)"; FAIL=$((FAIL+1))
         ;;
 esac
 
@@ -159,13 +159,13 @@ echo -e "${YELLOW}── PHP-FPM ──${NC}"
 
 FPM_SERVICE=$(systemctl list-units --type=service --state=running 2>/dev/null | grep 'php.*fpm' | head -1 | awk '{print $1}' || true)
 if [[ -n "$FPM_SERVICE" ]]; then
-    pass "PHP-FPM running: ${FPM_SERVICE}"; ((PASS++))
+    pass "PHP-FPM running: ${FPM_SERVICE}"; PASS=$((PASS+1))
 else
-    fail "No PHP-FPM service running"; ((FAIL++))
+    fail "No PHP-FPM service running"; FAIL=$((FAIL+1))
 fi
 
 PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;' 2>/dev/null || echo "?")
-pass "PHP version: ${PHP_VERSION}"; ((PASS++))
+pass "PHP version: ${PHP_VERSION}"; PASS=$((PASS+1))
 
 # ── 4. Cron ──
 echo ""
@@ -177,7 +177,7 @@ CRON_FOUND=false
 CRON_USER=""
 for user in "$WS_USER" "root"; do
     if sudo crontab -u "$user" -l 2>/dev/null | grep -q "dns:auto-sync"; then
-        pass "Cron auto-sync found (user: ${user})"; ((PASS++))
+        pass "Cron auto-sync found (user: ${user})"; PASS=$((PASS+1))
         CRON_FOUND=true; CRON_USER="$user"; break
     fi
 done
@@ -186,9 +186,9 @@ if ! $CRON_FOUND; then
     if $FIX_MODE; then
         CURRENT=$(sudo crontab -u "$WS_USER" -l 2>/dev/null || true)
         { echo "$CURRENT"; echo "$CRON_JOB"; } | sudo crontab -u "$WS_USER" - 2>/dev/null
-        pass "Cron auto-sync added for user ${WS_USER} (fixed)"; ((PASS++)); ((FIXED++))
+        pass "Cron auto-sync added for user ${WS_USER} (fixed)"; PASS=$((PASS+1)); FIXED=$((FIXED+1))
     else
-        fail "Cron auto-sync not configured — sudo bash check.sh --fix"; ((FAIL++))
+        fail "Cron auto-sync not configured — sudo bash check.sh --fix"; FAIL=$((FAIL+1))
     fi
 fi
 
@@ -198,17 +198,17 @@ echo -e "${YELLOW}── Database ──${NC}"
 
 if [[ -f "$DB_FILE" ]]; then
     if php -r "try { new PDO('sqlite:${DB_FILE}'); echo 'ok'; } catch(Exception \$e) { echo 'fail'; }" 2>/dev/null | grep -q ok; then
-        pass "SQLite database readable"; ((PASS++))
+        pass "SQLite database readable"; PASS=$((PASS+1))
     else
-        fail "Cannot read SQLite database — check permissions"; ((FAIL++))
+        fail "Cannot read SQLite database — check permissions"; FAIL=$((FAIL+1))
     fi
     if php "${APP_DIR}/artisan" migrate:status 2>/dev/null | grep -qi "Ran"; then
-        pass "Migrations have been run"; ((PASS++))
+        pass "Migrations have been run"; PASS=$((PASS+1))
     else
         if $FIX_MODE && php "${APP_DIR}/artisan" migrate --force --quiet 2>/dev/null; then
-            pass "Migrations run (fixed)"; ((PASS++)); ((FIXED++))
+            pass "Migrations run (fixed)"; PASS=$((PASS+1)); FIXED=$((FIXED+1))
         else
-            fail "Migrations not run — php artisan migrate --force"; ((FAIL++))
+            fail "Migrations not run — php artisan migrate --force"; FAIL=$((FAIL+1))
         fi
     fi
 fi
@@ -219,18 +219,18 @@ echo -e "${YELLOW}── Ports ──${NC}"
 
 if command -v ss &>/dev/null; then
     if ss -tlnp | grep -q ':80 '; then
-        pass "Port 80 is listening"; ((PASS++))
+        pass "Port 80 is listening"; PASS=$((PASS+1))
     else
         if $FIX_MODE; then
-            warn "Port 80 not listening — restart web server: sudo systemctl restart ${WS}"; ((WARN++))
+            warn "Port 80 not listening — restart web server: sudo systemctl restart ${WS}"; WARN=$((WARN+1))
         else
-            fail "Port 80 not listening"; ((FAIL++))
+            fail "Port 80 not listening"; FAIL=$((FAIL+1))
         fi
     fi
     if ss -tlnp | grep -q ':443 '; then
-        pass "Port 443 is listening"; ((PASS++))
+        pass "Port 443 is listening"; PASS=$((PASS+1))
     else
-        warn "Port 443 not listening — SSL mungkin belum di-setup (bash add-domain.sh)"; ((WARN++))
+        warn "Port 443 not listening — SSL mungkin belum di-setup (bash add-domain.sh)"; WARN=$((WARN+1))
     fi
 fi
 
