@@ -401,7 +401,20 @@ done
 ok "Service aktif: ${WS_SERVICE} + ${PHP_FPM_SERVICE_NAME}"
 
 # ─────────────────────────────────────────────────────
-# 10. Firewall info
+# 10. Setup Cron (Auto-Sync)
+# ─────────────────────────────────────────────────────
+CRON_USER="${WS_USER}"
+CRON_JOB="*/5 * * * * cd ${APP_DIR} && php artisan dns:auto-sync >> storage/logs/dns-sync.log 2>&1"
+if sudo crontab -u "$CRON_USER" -l 2>/dev/null | grep -q "dns:auto-sync"; then
+    ok "Cron auto-sync sudah ada"
+else
+    (sudo crontab -u "$CRON_USER" -l 2>/dev/null; echo "$CRON_JOB") | sudo crontab -u "$CRON_USER" - 2>/dev/null && \
+        ok "Cron auto-sync ditambahkan (setiap 5 menit, user: ${CRON_USER})" || \
+        warn "Gagal setup cron. Jalankan manual: crontab -e -u ${CRON_USER}"
+fi
+
+# ─────────────────────────────────────────────────────
+# 11. Firewall info
 # ─────────────────────────────────────────────────────
 info "Memeriksa firewall..."
 FIREWALL_CMD=""
@@ -412,7 +425,7 @@ elif command -v firewall-cmd &>/dev/null && firewall-cmd --state 2>/dev/null | g
 fi
 
 # ─────────────────────────────────────────────────────
-# 11. IP detection & output
+# 12. IP detection & output
 # ─────────────────────────────────────────────────────
 LOCAL_IP=$(ip -4 route get 1 | awk '{print $7; exit}' 2>/dev/null || hostname -I | awk '{print $1}')
 PUBLIC_IP=$(curl -4 -s --max-time 5 https://ipv4.icanhazip.com 2>/dev/null || echo "Gagal deteksi")
