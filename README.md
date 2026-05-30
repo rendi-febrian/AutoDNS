@@ -108,10 +108,31 @@ The `install.sh` script will:
 | 🗄️ | Setup SQLite database from `database/sample.sqlite` |
 | ⚙️ | Run `composer install`, `npm run build`, `php artisan migrate` |
 | 🌐 | Create web server virtual host on port `26298` |
+| ⚙️ | Create `autodns.service` systemd meta-service |
 | 🔄 | Enable & restart all services |
-| 📡 | Show local & public access URLs |
 
-After install, open `http://<server-ip>:26298` and register your first account.
+After install:
+
+```bash
+# Cek status
+systemctl status autodns
+
+# Akses web
+open http://<server-ip>:26298
+```
+
+### Uninstall
+
+```bash
+sudo bash /opt/autodns/uninstall.sh
+```
+
+Menghapus:
+- `/opt/autodns/` + database SQLite
+- `autodns.service` systemd
+- Web server vhost config (dinonaktifkan)
+
+Tidak menghapus PHP, Composer, Node.js, Git.
 
 ### Option B — Manual Setup
 
