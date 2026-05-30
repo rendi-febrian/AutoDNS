@@ -62,6 +62,7 @@ Whenever your server IP changes, run one command (or set a cron job) and all tra
 | **📂 Import Config** | Import domains from Nginx/Apache config files |
 | **📊 Activity Logs** | Full history of every DNS update with status and IP changes |
 | **⚡ Artisan Command** | `php artisan dns:auto-sync` for cron job automation |
+| **🔑 Default User** | `php artisan db:seed` — creates `admin@autodns.local` / `admin` |
 | **🌑 Dark UI** | Clean, modern dark interface built with Tailwind CSS |
 
 ---
@@ -113,6 +114,10 @@ The `install.sh` script will:
 After install:
 
 ```bash
+# First run — seed default admin user (opsional)
+cd /opt/autodns
+sudo -u www-data php artisan db:seed
+
 # Cek status web server & PHP-FPM
 systemctl status nginx    # atau apache2
 systemctl status php8.4-fpm
@@ -123,6 +128,8 @@ bash /opt/autodns/add-domain.sh example.com
 # Akses web
 open http://<server-ip>:26298
 ```
+
+> Default user: `admin@autodns.local` / `admin` (after running `php artisan db:seed`)
 
 ### Uninstall
 
