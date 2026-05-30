@@ -91,6 +91,8 @@ Laravel 13 + Breeze (Blade) + Tailwind CSS + Cloudflare API v4 + SQLite/MySQL
 Install with Nginx or Apache + PHP-FPM as a systemd service on port **26298**:
 
 ```bash
+sudo mkdir -p /opt/autodns
+sudo chown $USER:$USER /opt/autodns
 git clone https://github.com/rendi-febrian/AutoDNS.git /opt/autodns
 cd /opt/autodns
 sudo bash install.sh
