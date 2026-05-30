@@ -245,9 +245,9 @@ if [[ -f "$DB_FILE" ]]; then
     warn "database.sqlite sudah ada, melewati..."
 else
     cp "${APP_DIR}/database/sample.sqlite" "$DB_FILE"
-    chown "${APP_USER}:${APP_USER}" "$DB_FILE"
     ok "database.sqlite dibuat"
 fi
+chown "${APP_USER}:${APP_USER}" "$DB_FILE"
 
 # ─────────────────────────────────────────────────────
 # 6. Setup Aplikasi
@@ -289,6 +289,10 @@ npm install --silent 2>/dev/null
 npm run build --silent 2>/dev/null
 chown -R "${APP_USER}:${APP_USER}" public/build 2>/dev/null || true
 ok "Frontend siap"
+
+# Pastikan semua writable directory milik web server
+chown -R "${APP_USER}:${APP_USER}" storage database bootstrap/cache 2>/dev/null || true
+ok "Storage & database permissions fixed"
 
 # Migrate
 info "Menjalankan migrasi database..."
