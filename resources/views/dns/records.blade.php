@@ -132,9 +132,18 @@
                             </td>
                             <td class="px-5 py-3.5 text-right text-gray-600 text-xs">{{ $record->synced_at?->diffForHumans() ?? 'Never' }}</td>
                             <td class="px-5 py-3.5 text-right">
-                                <button onclick="openEdit({{ $record->id }})" class="text-[11px] px-2.5 py-1 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50 active:scale-[0.98] transition-all">
-                                    Edit
-                                </button>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <button onclick="openEdit({{ $record->id }})" class="text-[11px] px-2.5 py-1 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50 active:scale-[0.98] transition-all">
+                                        Edit
+                                    </button>
+                                    <form action="{{ route('zones.records.delete', $record) }}" method="POST" class="inline" onsubmit="return confirm('Hapus record {{ $record->name }}?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-[11px] px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all">
+                                            Del
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         @empty
@@ -160,6 +169,13 @@
             <form id="editForm" method="POST" class="p-5 space-y-4">
                 @csrf
                 @method('PUT')
+                @if($errors->any())
+                <div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                    @foreach($errors->all() as $error)
+                    <p>{{ $error }}</p>
+                    @endforeach
+                </div>
+                @endif
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-gray-400 mb-1.5">Type</label>

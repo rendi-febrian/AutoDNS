@@ -29,6 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/zones/{zone}/records/sync', [DnsController::class, 'syncRecords'])->name('zones.records.sync');
     Route::post('/zones/{zone}/records/create', [DnsController::class, 'createRecord'])->name('zones.records.create');
     Route::put('/zones/records/{dnsRecord}', [DnsController::class, 'updateRecord'])->name('zones.records.update');
+    Route::delete('/zones/records/{dnsRecord}', [DnsController::class, 'deleteRecord'])->name('zones.records.delete');
 
     // Tracked Domains
     Route::prefix('tracked-domains')->name('tracked-domains.')->group(function () {

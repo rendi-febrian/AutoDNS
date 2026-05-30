@@ -107,28 +107,60 @@ class DnsController extends Controller
 
         $dnsRecord->load('zone.cloudflareAccount');
         $service = new CloudflareService($dnsRecord->zone->cloudflareAccount);
+        $oldType = $dnsRecord->type;
         $oldContent = $dnsRecord->content;
+        $typeChanged = $oldType !== $validated['type'];
 
-        $result = $service->updateDnsRecord($dnsRecord->zone->zone_id, $dnsRecord->record_id, [
-            'type' => $validated['type'],
-            'name' => $validated['name'],
-            'content' => $validated['content'],
-            'ttl' => $validated['ttl'] ?? 120,
-            'proxied' => $validated['proxied'] ?? false,
-        ]);
+        if ($typeChanged) {
+            $delResult = $service->deleteDnsRecord($dnsRecord->zone->zone_id, $dnsRecord->record_id);
+            if (!isset($delResult['success']) || !$delResult['success']) {
+                return back()->with('error', 'Gagal hapus record lama: ' . ($delResult['errors'][0]['message'] ?? 'Unknown'));
+            }
 
-        if (!$result['success']) {
-            return back()->with('error', 'Gagal update: ' . ($result['errors'][0]['message'] ?? 'Unknown error'));
+            $createResult = $service->createDnsRecord($dnsRecord->zone->zone_id, [
+                'type' => $validated['type'],
+                'name' => $validated['name'],
+                'content' => $validated['content'],
+                'ttl' => $validated['ttl'] ?? 120,
+                'proxied' => $validated['proxied'] ?? false,
+            ]);
+
+            if (!isset($createResult['success']) || !$createResult['success']) {
+                return back()->with('error', 'Gagal buat record baru: ' . ($createResult['errors'][0]['message'] ?? 'Unknown'));
+            }
+
+            $r = $createResult['result'];
+            $dnsRecord->update([
+                'record_id' => $r['id'],
+                'type' => $r['type'],
+                'name' => rtrim($r['name'] ?? '', '.'),
+                'content' => $r['content'],
+                'ttl' => $r['ttl'] ?? 120,
+                'proxied' => $r['proxied'] ?? false,
+                'synced_at' => now(),
+            ]);
+        } else {
+            $result = $service->updateDnsRecord($dnsRecord->zone->zone_id, $dnsRecord->record_id, [
+                'type' => $validated['type'],
+                'name' => $validated['name'],
+                'content' => $validated['content'],
+                'ttl' => $validated['ttl'] ?? 120,
+                'proxied' => $validated['proxied'] ?? false,
+            ]);
+
+            if (!$result['success']) {
+                return back()->with('error', 'Gagal update: ' . ($result['errors'][0]['message'] ?? 'Unknown error'));
+            }
+
+            $dnsRecord->update([
+                'type' => $validated['type'],
+                'name' => $validated['name'],
+                'content' => $validated['content'],
+                'ttl' => $validated['ttl'] ?? 120,
+                'proxied' => $validated['proxied'] ?? false,
+                'synced_at' => now(),
+            ]);
         }
-
-        $dnsRecord->update([
-            'type' => $validated['type'],
-            'name' => $validated['name'],
-            'content' => $validated['content'],
-            'ttl' => $validated['ttl'] ?? 120,
-            'proxied' => $validated['proxied'] ?? false,
-            'synced_at' => now(),
-        ]);
 
         $trackedDomain = TrackedDomain::where('dns_record_id', $dnsRecord->id)->first();
         if ($trackedDomain && $validated['content'] !== $oldContent) {
@@ -143,10 +175,26 @@ class DnsController extends Controller
             'old_ip' => $oldContent,
             'new_ip' => $validated['content'],
             'status' => 'success',
-            'response_message' => 'Updated via edit',
+            'response_message' => $typeChanged ? "Converted from {$oldType} to {$validated['type']}" : 'Updated via edit',
         ]);
 
         return back()->with('success', "Record {$dnsRecord->name} updated.");
+    }
+
+    public function deleteRecord(DnsRecord $dnsRecord): RedirectResponse
+    {
+        $dnsRecord->load('zone.cloudflareAccount');
+        $service = new CloudflareService($dnsRecord->zone->cloudflareAccount);
+
+        $result = $service->deleteDnsRecord($dnsRecord->zone->zone_id, $dnsRecord->record_id);
+        if (!isset($result['success']) || !$result['success']) {
+            return back()->with('error', 'Gagal hapus: ' . ($result['errors'][0]['message'] ?? 'Unknown'));
+        }
+
+        TrackedDomain::where('dns_record_id', $dnsRecord->id)->delete();
+        $dnsRecord->delete();
+
+        return back()->with('success', 'DNS record deleted.');
     }
 
     public function updateSingle(Request $request): RedirectResponse
