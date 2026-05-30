@@ -8,6 +8,7 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()   { echo -e "${RED}[ERR]${NC}  $1"; }
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_PORT="${APP_PORT:-26298}"
 
 # ── Cek apakah IP milik Cloudflare ──
 is_cloudflare_ip() {
@@ -144,6 +145,35 @@ if command -v certbot &>/dev/null; then
     fi
 
     if [[ -n "$WS_PLUGIN" ]]; then
+        # Set server_name di HTTP vhost (biar certbot bisa mapping domain)
+        if [[ "$WS_PLUGIN" == "nginx" ]] && [[ -f /etc/nginx/sites-available/autodns ]]; then
+            if grep -q "server_name _;" /etc/nginx/sites-available/autodns; then
+                sudo sed -i "s/server_name _;/server_name ${DOMAIN};/" /etc/nginx/sites-available/autodns
+            elif ! grep -q "server_name.*\b${DOMAIN}\b" /etc/nginx/sites-available/autodns; then
+                sudo sed -i "s/server_name\(.*\);/server_name\1 ${DOMAIN};/" /etc/nginx/sites-available/autodns
+            fi
+            # Pastikan ada listen 80 untuk certbot challenge
+            if ! grep -q "listen 80;" /etc/nginx/sites-available/autodns; then
+                sudo sed -i "s/listen ${APP_PORT};/listen ${APP_PORT};\n    listen 80;\n    listen [::]:80;/" /etc/nginx/sites-available/autodns
+            fi
+            info "Nginx vhost updated with server_name ${DOMAIN}"
+        elif [[ "$WS_PLUGIN" == "apache" ]] && [[ -f /etc/apache2/sites-available/autodns.conf ]]; then
+            if ! grep -q "ServerName.*\b${DOMAIN}\b" /etc/apache2/sites-available/autodns.conf; then
+                if grep -q "ServerAdmin" /etc/apache2/sites-available/autodns.conf && ! grep -q "ServerName" /etc/apache2/sites-available/autodns.conf; then
+                    sudo sed -i "/ServerAdmin/a\    ServerName ${DOMAIN}" /etc/apache2/sites-available/autodns.conf
+                fi
+            fi
+            # Pastikan port 80 listen untuk certbot challenge
+            if ! grep -q "^Listen 80" /etc/apache2/ports.conf 2>/dev/null; then
+                echo "Listen 80" | sudo tee -a /etc/apache2/ports.conf >/dev/null
+            fi
+            info "Apache vhost updated with ServerName ${DOMAIN}"
+        fi
+
+        # Reload biar vhost baru kebaca
+        sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
+
+        # Jalankan certbot
         CERTBOT_OK=false
         if sudo certbot certificates 2>/dev/null | grep -q "Domains:.*\b${DOMAIN}\b"; then
             ok "SSL certificate already exists for ${DOMAIN}"
@@ -152,23 +182,9 @@ if command -v certbot &>/dev/null; then
             info "Running certbot --${WS_PLUGIN} for ${DOMAIN}..."
             if sudo certbot --"${WS_PLUGIN}" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1; then
                 CERTBOT_OK=true
+                ok "SSL certificate installed for ${DOMAIN}"
             else
-                warn "certbot failed for ${DOMAIN}. Run manually: sudo certbot --${WS_PLUGIN} -d ${DOMAIN}"
-            fi
-        fi
-
-        # Update HTTP vhost server_name dan reload
-        if [[ "$CERTBOT_OK" == true ]]; then
-            if [[ "$WS_PLUGIN" == "nginx" ]] && [[ -f /etc/nginx/sites-available/autodns ]]; then
-                sudo sed -i "s/server_name _;/server_name ${DOMAIN};/" /etc/nginx/sites-available/autodns
-                sudo systemctl reload nginx
-                ok "Nginx vhost updated & reloaded"
-            elif [[ "$WS_PLUGIN" == "apache" ]] && [[ -f /etc/apache2/sites-available/autodns.conf ]]; then
-                if ! grep -q "ServerName ${DOMAIN}" /etc/apache2/sites-available/autodns.conf; then
-                    sudo sed -i "s/ServerAdmin.*/&\n\tServerName ${DOMAIN}/" /etc/apache2/sites-available/autodns.conf
-                fi
-                sudo systemctl reload apache2
-                ok "Apache vhost updated & reloaded"
+                warn "certbot failed. Run manually: sudo certbot --${WS_PLUGIN} -d ${DOMAIN}"
             fi
         fi
     else
@@ -177,8 +193,8 @@ if command -v certbot &>/dev/null; then
 
     # Auto-renew cron (fallback jika systemd timer tidak aktif)
     if ! systemctl is-active --quiet certbot.timer 2>/dev/null && ! systemctl is-active --quiet certbot-renew.timer 2>/dev/null; then
-        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet") | crontab -
+        if ! sudo crontab -l 2>/dev/null | grep -q "certbot renew"; then
+            (sudo crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet") | sudo crontab -
             ok "certbot auto-renew cron added (daily 3 AM)"
         fi
     fi
