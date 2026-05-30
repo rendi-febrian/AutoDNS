@@ -91,7 +91,7 @@ Laravel 13 + Breeze (Blade) + Tailwind CSS + Cloudflare API v4 + SQLite/MySQL
 Install with Nginx or Apache + PHP-FPM as a systemd service on port **26298**:
 
 ```bash
-git clone https://github.com/rendi-febrian/autodns-dashboard.git /opt/autodns
+git clone https://github.com/rendi-febrian/AutoDNS.git /opt/autodns
 cd /opt/autodns
 sudo bash install.sh
 ```
@@ -114,8 +114,8 @@ After install, open `http://<server-ip>:26298` and register your first account.
 ### Option B — Manual Setup
 
 ```bash
-git clone https://github.com/rendi-febrian/autodns-dashboard.git
-cd autodns-dashboard
+git clone https://github.com/rendi-febrian/AutoDNS.git
+cd AutoDNS
 
 # Setup SQLite database
 cp database/sample.sqlite database/database.sqlite
@@ -168,6 +168,8 @@ Before using the app, you need to create an API Token in your Cloudflare dashboa
    | TTL | `No end date` (atau sesuai kebutuhan) |
 
    > **Optional**: Tambah permission `User` → `User Details` → `Read` untuk auto-detect nama & email akun.
+
+   ![Create API Token](./image.png)
 
 6. Klik **Continue to Summary**, lalu **Create Token**
 7. Copy token yang muncul (bentuknya `cf_...`), simpan di tempat aman
