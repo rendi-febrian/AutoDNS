@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Models\DnsRecord;
 use App\Models\DnsUpdateLog;
 use App\Models\TrackedDomain;
+use App\Models\Zone;
+use App\Models\CloudflareAccount;
 use App\Services\CloudflareService;
 use Illuminate\Console\Command;
 
@@ -24,6 +26,84 @@ class AutoSyncDns extends Command
         }
 
         $this->info("Current public IP: {$ip}");
+
+        // Auto-link unlinked domains
+        $unlinked = TrackedDomain::whereNull('dns_record_id')->where('is_active', true)->get();
+        foreach ($unlinked as $domain) {
+            $zone = $this->resolveZone($domain->zone_name);
+            if (!$zone) continue;
+
+            $record = DnsRecord::where('zone_id', $zone->id)
+                ->where('name', $domain->domain_name)
+                ->where('type', 'A')
+                ->first();
+
+            if (!$record && $zone->cloudflareAccount) {
+                $cf = new CloudflareService($zone->cloudflareAccount);
+                $result = $cf->getDnsRecords($zone->zone_id);
+                foreach ($result['result'] ?? [] as $rec) {
+                    $recName = rtrim($rec['name'] ?? '', '.');
+                    $domName = rtrim($domain->domain_name, '.');
+                    if ($rec['type'] === 'A' && strcasecmp($recName, $domName) === 0) {
+                        $record = DnsRecord::firstOrCreate(
+                            ['record_id' => $rec['id']],
+                            [
+                                'zone_id' => $zone->id,
+                                'type' => 'A',
+                                'name' => $recName,
+                                'content' => $rec['content'],
+                                'ttl' => $rec['ttl'],
+                                'proxied' => $rec['proxied'] ?? false,
+                            ]
+                        );
+                        break;
+                    }
+                }
+            }
+
+            if (!$record && $zone->cloudflareAccount) {
+                $cf = new CloudflareService($zone->cloudflareAccount);
+                $createResult = $cf->createDnsRecord($zone->zone_id, [
+                    'type' => 'A',
+                    'name' => $domain->domain_name,
+                    'content' => $ip,
+                    'ttl' => 120,
+                    'proxied' => false,
+                ]);
+
+                if (isset($createResult['success']) && $createResult['success']) {
+                    $r = $createResult['result'];
+                    $record = DnsRecord::create([
+                        'zone_id' => $zone->id,
+                        'record_id' => $r['id'],
+                        'type' => $r['type'],
+                        'name' => rtrim($r['name'] ?? '', '.'),
+                        'content' => $r['content'],
+                        'ttl' => $r['ttl'],
+                        'proxied' => $r['proxied'] ?? false,
+                    ]);
+                }
+            }
+
+            if ($record) {
+                $domain->update([
+                    'dns_record_id' => $record->id,
+                    'ip_address' => $record->content,
+                    'last_synced_at' => now(),
+                ]);
+                DnsUpdateLog::create([
+                    'tracked_domain_id' => $domain->id,
+                    'zone_name' => $zone->name,
+                    'record_name' => $record->name,
+                    'record_type' => 'A',
+                    'old_ip' => null,
+                    'new_ip' => $record->content,
+                    'status' => 'linked',
+                    'response_message' => 'Auto-linked via cron',
+                ]);
+                $this->line("  [LINK] {$domain->domain_name} → {$record->content}");
+            }
+        }
 
         $domains = TrackedDomain::with('dnsRecord.zone.cloudflareAccount')
             ->where('is_active', true)
@@ -52,6 +132,18 @@ class AutoSyncDns extends Command
 
             if ($record->content === $ip && !$this->option('force')) {
                 $this->line("  [OK]   {$domain->domain_name}: already {$ip}");
+                $domain->update(['last_synced_at' => now()]);
+                $record->update(['synced_at' => now()]);
+                DnsUpdateLog::create([
+                    'tracked_domain_id' => $domain->id,
+                    'zone_name' => $record->zone->name,
+                    'record_name' => $record->name,
+                    'record_type' => $record->type,
+                    'old_ip' => $ip,
+                    'new_ip' => $ip,
+                    'status' => 'nochange',
+                    'response_message' => 'IP sudah sesuai',
+                ]);
                 $skippedCount++;
                 continue;
             }
@@ -96,5 +188,30 @@ class AutoSyncDns extends Command
         $this->info("Done. {$successCount} updated, {$failCount} failed, {$skippedCount} skipped.");
 
         return self::SUCCESS;
+    }
+
+    private function resolveZone(string $zoneName): ?Zone
+    {
+        $zone = Zone::where('name', $zoneName)->first();
+        if ($zone) return $zone;
+
+        foreach (CloudflareAccount::all() as $account) {
+            $cf = new CloudflareService($account);
+            $result = $cf->getZones();
+            if (!isset($result['success']) || !$result['success']) continue;
+
+            foreach ($result['result'] as $z) {
+                if ($z['name'] === $zoneName) {
+                    return Zone::create([
+                        'cloudflare_account_id' => $account->id,
+                        'zone_id' => $z['id'],
+                        'name' => $z['name'],
+                        'status' => $z['status'] ?? 'active',
+                    ]);
+                }
+            }
+        }
+
+        return null;
     }
 }

@@ -404,7 +404,7 @@ ok "Service aktif: ${WS_SERVICE} + ${PHP_FPM_SERVICE_NAME}"
 # 10. Setup Cron (Auto-Sync)
 # ─────────────────────────────────────────────────────
 CRON_USER="${WS_USER}"
-CRON_JOB="*/5 * * * * cd ${APP_DIR} && php artisan dns:auto-sync >> storage/logs/dns-sync.log 2>&1"
+CRON_JOB="*/5 * * * * ${APP_DIR}/auto-dns-sync.sh"
 if sudo crontab -u "$CRON_USER" -l 2>/dev/null | grep -q "dns:auto-sync"; then
     ok "Cron auto-sync sudah ada"
 else

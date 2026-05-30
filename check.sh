@@ -177,13 +177,13 @@ WS_USER=$(detect_ws_user)
 CRON_FOUND=false
 CRON_USER=""
 for user in "$WS_USER" "root"; do
-    if sudo crontab -u "$user" -l 2>/dev/null | grep -q "dns:auto-sync"; then
+    if sudo crontab -u "$user" -l 2>/dev/null | grep -qE "dns:auto-sync|auto-dns-sync"; then
         pass "Cron auto-sync found (user: ${user})"; PASS=$((PASS+1))
         CRON_FOUND=true; CRON_USER="$user"; break
     fi
 done
 if ! $CRON_FOUND; then
-    CRON_JOB="*/5 * * * * cd ${APP_DIR} && php artisan dns:auto-sync >> storage/logs/dns-sync.log 2>&1"
+    CRON_JOB="*/5 * * * * ${APP_DIR}/auto-dns-sync.sh"
     if $FIX_MODE; then
         CURRENT=$(sudo crontab -u "$WS_USER" -l 2>/dev/null || true)
         { echo "$CURRENT"; echo "$CRON_JOB"; } | sudo crontab -u "$WS_USER" - 2>/dev/null
