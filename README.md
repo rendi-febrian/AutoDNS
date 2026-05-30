@@ -130,7 +130,11 @@ open http://<server-ip>:26298
 sudo bash /opt/autodns/uninstall.sh
 ```
 
-Hanya menghapus `/opt/autodns/` — web server, PHP, Composer, Node.js, Git, dan konfigurasi vhost tidak disentuh.
+Menghapus:
+- `/opt/autodns/` + database SQLite
+- Vhost Nginx/Apache untuk autodns
+
+Tidak menyentuh PHP, Composer, Node.js, Git, web server, atau vhost lain.
 
 ### Option B — Manual Setup
 
