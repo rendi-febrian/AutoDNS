@@ -84,6 +84,19 @@ open http://<server-ip>
 
 > Default user: `admin@autodns.local` / `admin`
 
+### Health Check & Fix
+
+```bash
+# Check installation health (read-only)
+sudo bash check.sh
+
+# Auto-fix issues (cron, permissions, migrations, etc.)
+sudo bash check.sh --fix
+
+# Fix Laravel-level issues (.env, APP_KEY, migrations, permissions)
+sudo php artisan fix:core
+```
+
 ### Uninstall
 
 ```bash
@@ -141,7 +154,8 @@ php artisan dns:auto-sync --force
 ├── app/
 │   ├── Console/Commands/
 │   │   ├── AutoSyncDns.php              # dns:auto-sync
-│   │   └── DomainTrack.php              # domain:track
+│   │   ├── DomainTrack.php              # domain:track
+│   │   └── FixCore.php                  # fix:core
 │   ├── Http/Controllers/
 │   │   ├── CloudflareAccountController.php
 │   │   ├── DnsController.php
@@ -161,6 +175,7 @@ php artisan dns:auto-sync --force
 │   ├── sample.sqlite                    # Empty SQLite placeholder
 │   └── migrations/
 ├── install.sh                           # One-click installer
+├── check.sh                             # Health check + auto-fix
 ├── add-domain.sh                        # Add domain + SSL
 ├── uninstall.sh
 ├── auto-dns-sync.sh                     # Cron wrapper

@@ -8,13 +8,14 @@ use Illuminate\Support\Facades\Process;
 
 class FixCore extends Command
 {
-    protected $signature = 'fix:core';
+    protected $signature = 'fix:core {--fix : Auto-fix issues (default)}';
     protected $description = 'Check and fix common Auto DNS Domain issues';
 
     public function handle(): int
     {
         $fixed = 0;
         $skipped = 0;
+        $isRoot = function_exists('posix_getuid') && posix_getuid() === 0;
 
         $this->info('Auto DNS Domain — Fix Core');
         $this->newLine();
@@ -70,24 +71,23 @@ class FixCore extends Command
         // ── 5. Storage permissions ──
         $this->line('── Permissions ──');
         $dirs = ['storage', 'bootstrap/cache', 'database'];
-        $webUser = $this->detectWebUser();
         foreach ($dirs as $dir) {
             $path = base_path($dir);
-            if (!is_writable($path)) {
-                if ($webUser) {
-                    $result = Process::run("chown -R {$webUser}:{$webUser} {$path}");
-                    if ($result->successful()) {
-                        $this->info("  ✓ {$dir} permissions fixed (chown {$webUser})");
-                        $fixed++;
-                    } else {
-                        $this->warn("  ⚠ {$dir} not writable — need sudo: chown -R {$webUser}:{$webUser} {$path}");
-                    }
-                } else {
-                    $this->warn("  ⚠ {$dir} not writable — chmod -R 775 {$path}");
-                }
-            } else {
+            if (is_writable($path)) {
                 $this->line("  ✓ {$dir} is writable");
                 $skipped++;
+            } elseif ($isRoot) {
+                $webUser = $this->detectWebUser();
+                $owner = $webUser ?? 'www-data';
+                $result = Process::run("chown -R {$owner}:{$owner} {$path}");
+                if ($result->successful()) {
+                    $this->info("  ✓ {$dir} permissions fixed (chown {$owner})");
+                    $fixed++;
+                } else {
+                    $this->warn("  ⚠ {$dir} not writable — chown -R {$owner}:{$owner} {$path}");
+                }
+            } else {
+                $this->warn("  ⚠ {$dir} not writable — run as root: php artisan fix:core");
             }
         }
 
