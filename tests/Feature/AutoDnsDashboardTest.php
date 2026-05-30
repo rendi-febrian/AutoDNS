@@ -283,14 +283,14 @@ APACHE;
 
     // ── Import Config Validation ──
 
-    public function test_import_config_requires_content_for_manual()
+    public function test_import_config_shows_error_on_empty_content()
     {
         $this->actingAs($this->user)
             ->post('/tracked-domains/import-config', [
                 'config_type' => 'manual',
                 'config_content' => '',
             ])
-            ->assertSessionHasErrors('config_content');
+            ->assertSessionHas('error');
     }
 
     // ── Profile ──

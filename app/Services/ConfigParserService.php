@@ -4,6 +4,15 @@ namespace App\Services;
 
 class ConfigParserService
 {
+    private function isValidDomain(string $name): bool
+    {
+        $name = trim($name);
+        if (empty($name)) return false;
+        if (preg_match('/[\${}]/', $name)) return false;
+        if ($name === '_' || $name === 'localhost') return false;
+        return preg_match('/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $name) === 1;
+    }
+
     public function parseNginxConfig(string $content): array
     {
         $domains = [];
@@ -12,7 +21,7 @@ class ConfigParserService
             $names = preg_split('/\s+/', trim($match));
             foreach ($names as $name) {
                 $name = trim($name);
-                if (!empty($name) && $name !== '_') {
+                if ($this->isValidDomain($name)) {
                     $domains[] = $name;
                 }
             }
@@ -25,14 +34,17 @@ class ConfigParserService
         $domains = [];
         preg_match_all('/ServerName\s+(\S+)/i', $content, $matches);
         foreach ($matches[1] as $name) {
-            $domains[] = trim($name);
+            $name = trim($name);
+            if ($this->isValidDomain($name)) {
+                $domains[] = $name;
+            }
         }
         preg_match_all('/ServerAlias\s+(.+)/i', $content, $matches);
         foreach ($matches[1] as $match) {
             $names = preg_split('/\s+/', trim($match));
             foreach ($names as $name) {
                 $name = trim($name);
-                if (!empty($name)) {
+                if ($this->isValidDomain($name)) {
                     $domains[] = $name;
                 }
             }
