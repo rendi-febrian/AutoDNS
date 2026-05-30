@@ -136,7 +136,7 @@ else
 fi
 
 if command -v certbot &>/dev/null; then
-    # Deteksi web server
+    # Deteksi web server (cuma buat keperluan reload)
     WS_PLUGIN=""
     if command -v nginx &>/dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
         WS_PLUGIN="nginx"
@@ -144,54 +144,76 @@ if command -v certbot &>/dev/null; then
         WS_PLUGIN="apache"
     fi
 
-    if [[ -n "$WS_PLUGIN" ]]; then
-        # Set server_name di HTTP vhost (biar certbot bisa mapping domain)
-        if [[ "$WS_PLUGIN" == "nginx" ]] && [[ -f /etc/nginx/sites-available/autodns ]]; then
-            if grep -q "server_name _;" /etc/nginx/sites-available/autodns; then
-                sudo sed -i "s/server_name _;/server_name ${DOMAIN};/" /etc/nginx/sites-available/autodns
-            elif ! grep -q "server_name.*\b${DOMAIN}\b" /etc/nginx/sites-available/autodns; then
-                sudo sed -i "s/server_name\(.*\);/server_name\1 ${DOMAIN};/" /etc/nginx/sites-available/autodns
-            fi
-            # Pastikan ada listen 80 untuk certbot challenge
-            if ! grep -q "listen 80;" /etc/nginx/sites-available/autodns; then
-                sudo sed -i "s/listen ${APP_PORT};/listen ${APP_PORT};\n    listen 80;\n    listen [::]:80;/" /etc/nginx/sites-available/autodns
-            fi
-            info "Nginx vhost updated with server_name ${DOMAIN}"
-        elif [[ "$WS_PLUGIN" == "apache" ]] && [[ -f /etc/apache2/sites-available/autodns.conf ]]; then
-            if ! grep -q "ServerName.*\b${DOMAIN}\b" /etc/apache2/sites-available/autodns.conf; then
-                if grep -q "ServerAdmin" /etc/apache2/sites-available/autodns.conf && ! grep -q "ServerName" /etc/apache2/sites-available/autodns.conf; then
-                    sudo sed -i "/ServerAdmin/a\    ServerName ${DOMAIN}" /etc/apache2/sites-available/autodns.conf
-                fi
-            fi
-            # Pastikan port 80 listen untuk certbot challenge
-            if ! grep -q "^Listen 80" /etc/apache2/ports.conf 2>/dev/null; then
-                echo "Listen 80" | sudo tee -a /etc/apache2/ports.conf >/dev/null
-            fi
-            info "Apache vhost updated with ServerName ${DOMAIN}"
+    # Set server_name di HTTP vhost + tambah listen 80 buat certbot challenge
+    if [[ "$WS_PLUGIN" == "nginx" ]] && [[ -f /etc/nginx/sites-available/autodns ]]; then
+        if grep -q "server_name _;" /etc/nginx/sites-available/autodns; then
+            sudo sed -i "s/server_name _;/server_name ${DOMAIN};/" /etc/nginx/sites-available/autodns
+        elif ! grep -q "server_name.*\b${DOMAIN}\b" /etc/nginx/sites-available/autodns; then
+            sudo sed -i "s/server_name\(.*\);/server_name\1 ${DOMAIN};/" /etc/nginx/sites-available/autodns
         fi
-
-        # Reload biar vhost baru kebaca
-        sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
-
-        # Jalankan certbot
-        CERTBOT_OK=false
-        if sudo certbot certificates 2>/dev/null | grep -q "Domains:.*\b${DOMAIN}\b"; then
-            ok "SSL certificate already exists for ${DOMAIN}"
-            CERTBOT_OK=true
-        else
-            info "Running certbot --${WS_PLUGIN} for ${DOMAIN}..."
-            if sudo certbot --"${WS_PLUGIN}" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1; then
-                CERTBOT_OK=true
-                ok "SSL certificate installed for ${DOMAIN}"
-            else
-                warn "certbot failed. Run manually: sudo certbot --${WS_PLUGIN} -d ${DOMAIN}"
+        if ! grep -q "listen 80;" /etc/nginx/sites-available/autodns; then
+            sudo sed -i "s/listen ${APP_PORT};/listen ${APP_PORT};\n    listen 80;\n    listen [::]:80;/" /etc/nginx/sites-available/autodns
+        fi
+    elif [[ "$WS_PLUGIN" == "apache" ]] && [[ -f /etc/apache2/sites-available/autodns.conf ]]; then
+        if ! grep -q "ServerName.*\b${DOMAIN}\b" /etc/apache2/sites-available/autodns.conf; then
+            if grep -q "ServerAdmin" /etc/apache2/sites-available/autodns.conf && ! grep -q "ServerName" /etc/apache2/sites-available/autodns.conf; then
+                sudo sed -i "/ServerAdmin/a\    ServerName ${DOMAIN}" /etc/apache2/sites-available/autodns.conf
             fi
         fi
-    else
-        warn "No active web server (nginx/apache) detected. Run certbot manually."
+        if ! grep -q "^Listen 80" /etc/apache2/ports.conf 2>/dev/null; then
+            echo "Listen 80" | sudo tee -a /etc/apache2/ports.conf >/dev/null
+        fi
     fi
 
-    # Auto-renew cron (fallback jika systemd timer tidak aktif)
+    sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
+
+    # Certbot: pakai certonly --webroot (gak sentuh vhost config)
+    LE_DIR="/etc/letsencrypt/live/${DOMAIN}"
+    if [[ -f "${LE_DIR}/fullchain.pem" ]]; then
+        ok "SSL certificate already exists for ${DOMAIN}"
+        CERTBOT_OK=true
+    else
+        info "Getting SSL certificate for ${DOMAIN} via webroot..."
+        if sudo certbot certonly --webroot -w "${APP_DIR}/public" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email 2>&1; then
+            CERTBOT_OK=true
+            ok "SSL certificate installed for ${DOMAIN}"
+        else
+            warn "certbot failed. Run manually: sudo certbot certonly --webroot -w ${APP_DIR}/public -d ${DOMAIN}"
+        fi
+    fi
+
+    # Pasang SSL ke vhost (port 26298)
+    if [[ "$CERTBOT_OK" == true ]]; then
+        if [[ "$WS_PLUGIN" == "nginx" ]]; then
+            # Tambah listen 443 ssl + sertifikat ke server block
+            if ! grep -q "listen 443 ssl;" /etc/nginx/sites-available/autodns; then
+                sudo sed -i "/listen 80;/a\    listen 443 ssl;" /etc/nginx/sites-available/autodns
+            fi
+            if ! grep -q "ssl_certificate_key.*${DOMAIN}" /etc/nginx/sites-available/autodns; then
+                sudo sed -i "/server_name.*${DOMAIN}/a\    ssl_certificate ${LE_DIR}/fullchain.pem;\n    ssl_certificate_key ${LE_DIR}/privkey.pem;" /etc/nginx/sites-available/autodns
+            fi
+            ok "Nginx SSL config added"
+        elif [[ "$WS_PLUGIN" == "apache" ]]; then
+            # Aktifkan mod ssl & buat SSL virtualhost
+            sudo a2enmod ssl >/dev/null 2>&1 || true
+            if ! grep -q "SSLEngine" /etc/apache2/sites-available/autodns.conf; then
+                sudo sed -i "/ServerName ${DOMAIN}/a\    SSLEngine on\n    SSLCertificateFile ${LE_DIR}/fullchain.pem\n    SSLCertificateKeyFile ${LE_DIR}/privkey.pem" /etc/apache2/sites-available/autodns.conf
+            fi
+            if ! grep -q "<VirtualHost \*:443>" /etc/apache2/sites-available/autodns.conf; then
+                # Duplikat vhost buat port 443
+                sudo sed -i "s/<VirtualHost \*:${APP_PORT}>/<VirtualHost *:${APP_PORT}>\n<VirtualHost *:443>\n    ServerName ${DOMAIN}\n    SSLEngine on\n    SSLCertificateFile ${LE_DIR}/fullchain.pem\n    SSLCertificateKeyFile ${LE_DIR}/privkey.pem\n    <IfModule mod_rewrite.c>\n        RewriteEngine On\n        RewriteCond %{HTTPS} off\n        RewriteRule ^ https:\/\/%{HTTP_HOST}%{REQUEST_URI} [L,R=301]\n    <\/IfModule>\n<\/VirtualHost>/" /etc/apache2/sites-available/autodns.conf
+            fi
+            if ! grep -q "^Listen 443" /etc/apache2/ports.conf 2>/dev/null; then
+                echo "Listen 443" | sudo tee -a /etc/apache2/ports.conf >/dev/null
+            fi
+            ok "Apache SSL config added"
+        fi
+
+        sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
+        ok "Web server reloaded"
+    fi
+
+    # Auto-renew cron
     if ! systemctl is-active --quiet certbot.timer 2>/dev/null && ! systemctl is-active --quiet certbot-renew.timer 2>/dev/null; then
         if ! sudo crontab -l 2>/dev/null | grep -q "certbot renew"; then
             (sudo crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet") | sudo crontab -
