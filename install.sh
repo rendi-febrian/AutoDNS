@@ -13,7 +13,7 @@ err()   { echo -e "${RED}[ERR]${NC}  $1" >&2; }
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="autodns"
-APP_PORT="${APP_PORT:-26298}"
+APP_PORT="${APP_PORT:-80}"
 APP_USER="${APP_USER:-www-data}"
 
 # ─────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ case "$WS" in
         cat > "$WS_VHOST_FILE" <<EOF
 server {
     listen ${APP_PORT};
-    server_name _;
+    server_name localhost;
 
     root ${APP_DIR}/public;
     index index.php;
@@ -346,6 +346,7 @@ EOF
         cat > "$WS_VHOST_FILE" <<EOF
 <VirtualHost *:${APP_PORT}>
     ServerAdmin webmaster@localhost
+    ServerName localhost
     DocumentRoot ${APP_DIR}/public
 
     <Directory ${APP_DIR}/public>

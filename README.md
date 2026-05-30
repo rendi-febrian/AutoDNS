@@ -89,7 +89,7 @@ Laravel 13 + Breeze (Blade) + Tailwind CSS + Cloudflare API v4 + SQLite/MySQL
 
 ### Option A — One-Click Install (System Service)
 
-Install with Nginx or Apache + PHP-FPM as a systemd service on port **26298**:
+Install with Nginx or Apache + PHP-FPM:
 
 ```bash
 sudo mkdir -p /opt/autodns
@@ -108,7 +108,7 @@ The `install.sh` script will:
 | 🎨 | Let you choose **Nginx** or **Apache** |
 | 🗄️ | Setup SQLite database from `database/sample.sqlite` |
 | ⚙️ | Run `composer install`, `npm run build`, `php artisan migrate` |
-| 🌐 | Create web server virtual host on port `26298` |
+| 🌐 | Create web server virtual host on port `80` |
 | 🔄 | Enable & restart all services |
 
 After install:
@@ -126,7 +126,7 @@ systemctl status php8.4-fpm
 bash /opt/autodns/add-domain.sh example.com
 
 # Akses web
-open http://<server-ip>:26298
+open http://<server-ip>
 ```
 
 > Default user: `admin@autodns.local` / `admin` (after running `php artisan db:seed`)
@@ -166,14 +166,14 @@ Then open `http://localhost:8000`.
 
 ### Firewall
 
-If you're using a firewall, allow port **26298**:
+If you have a firewall, standard HTTP:
 
 ```bash
 # UFW
-sudo ufw allow 26298/tcp
+sudo ufw allow 80/tcp
 
 # FirewallD
-sudo firewall-cmd --add-port=26298/tcp --permanent
+sudo firewall-cmd --add-port=80/tcp --permanent
 sudo firewall-cmd --reload
 ```
 
@@ -252,11 +252,10 @@ Before using the app, you need to create an API Token in your Cloudflare dashboa
 
 Tambahkan domain ke tracked domains langsung dari terminal. Script akan:
 
-1. Cek A record domain → harus指向 server IP
-2. Install certbot & pasang SSL certificate (LetsEncrypt)
-3. Setup auto-renew cron kalau belum ada
-4. Cari zone di Cloudflare, buat A record kalau belum ada
-5. Link ke tracked domains (auto-sync langsung aktif)
+1. Cek A record domain → harus指向 server IP (CF proxy IP diperbolehkan)
+2. Update server_name di vhost web server
+3. Cari zone di Cloudflare, buat A record kalau belum ada
+4. Link ke tracked domains (auto-sync langsung aktif)
 
 ```bash
 cd /opt/autodns
