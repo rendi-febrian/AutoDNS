@@ -131,13 +131,19 @@ fi
 
 node_version_ok() {
     [[ -z "$1" ]] && return 1
+    local ver="$1"
+    # nvm current returns "system" for system node
+    [[ "$ver" == "system" ]] && return 1
     local maj
-    maj=$(echo "$1" | cut -d. -f1)
+    maj=$(echo "$ver" | cut -d. -f1)
+    # Make sure it's numeric before comparing
+    [[ "$maj" =~ ^[0-9]+$ ]] || return 1
     [[ "$maj" -ge "$NODE_REQUIRED" ]]
 }
 
 if $USE_NVM; then
-    CURRENT_NODE=$(nvm current 2>/dev/null || echo "none")
+    CURRENT_NODE=$(nvm current 2>/dev/null || true)
+    [[ -z "$CURRENT_NODE" ]] && CURRENT_NODE="none"
     CURRENT_NODE="${CURRENT_NODE#v}"
 
     if [[ "$CURRENT_NODE" == "none" ]] || ! node_version_ok "$CURRENT_NODE"; then
