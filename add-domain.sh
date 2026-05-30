@@ -168,6 +168,7 @@ fi
 # ── Add via Artisan ──
 info "Adding domain to tracked domains..."
 cd "$APP_DIR"
+sudo chown -R www-data:www-data storage database bootstrap/cache 2>/dev/null || true
 sudo -u www-data php artisan domain:track "$DOMAIN" --ip="$SERVER_IP"
 
 echo ""
