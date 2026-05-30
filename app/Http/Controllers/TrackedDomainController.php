@@ -173,6 +173,20 @@ class TrackedDomainController extends Controller
             $zone = $record->zone;
             $account = $zone->cloudflareAccount;
 
+            if ($record->type !== 'A') {
+                DnsUpdateLog::create([
+                    'tracked_domain_id' => $domain->id,
+                    'zone_name' => $zone->name,
+                    'record_name' => $record->name,
+                    'record_type' => $record->type,
+                    'old_ip' => $record->content,
+                    'new_ip' => $record->content,
+                    'status' => 'skipped',
+                    'response_message' => 'Bukan A record, auto-sync hanya untuk A record',
+                ]);
+                continue;
+            }
+
             if ($record->content === $ip) {
                 $domain->update(['last_synced_at' => now()]);
                 $record->update(['synced_at' => now()]);

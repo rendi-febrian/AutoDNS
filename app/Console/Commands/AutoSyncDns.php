@@ -130,6 +130,24 @@ class AutoSyncDns extends Command
                 continue;
             }
 
+            if ($record->type !== 'A') {
+                $this->line("  [SKIP] {$domain->domain_name}: Bukan A record (skip)");
+                $domain->update(['last_synced_at' => now()]);
+                $record->update(['synced_at' => now()]);
+                DnsUpdateLog::create([
+                    'tracked_domain_id' => $domain->id,
+                    'zone_name' => $record->zone->name,
+                    'record_name' => $record->name,
+                    'record_type' => $record->type,
+                    'old_ip' => $record->content,
+                    'new_ip' => $record->content,
+                    'status' => 'skipped',
+                    'response_message' => 'Bukan A record, auto-sync hanya untuk A record',
+                ]);
+                $skippedCount++;
+                continue;
+            }
+
             if ($record->content === $ip && !$this->option('force')) {
                 $this->line("  [OK]   {$domain->domain_name}: already {$ip}");
                 $domain->update(['last_synced_at' => now()]);
