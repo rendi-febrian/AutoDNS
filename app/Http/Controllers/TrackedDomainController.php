@@ -77,10 +77,33 @@ class TrackedDomainController extends Controller
             $zone = Zone::where('name', $domain->zone_name)->first();
             if (!$zone) continue;
 
+            // Try local DB first
             $record = DnsRecord::where('zone_id', $zone->id)
                 ->where('name', $domain->domain_name)
                 ->where('type', 'A')
                 ->first();
+
+            // Try CF API if not in local DB
+            if (!$record && $zone->cloudflareAccount) {
+                $cf = new CloudflareService($zone->cloudflareAccount);
+                $result = $cf->getDnsRecords($zone->zone_id);
+                foreach ($result['result'] ?? [] as $rec) {
+                    if ($rec['type'] === 'A' && $rec['name'] === $domain->domain_name) {
+                        $record = DnsRecord::firstOrCreate(
+                            ['record_id' => $rec['id']],
+                            [
+                                'zone_id' => $zone->id,
+                                'type' => 'A',
+                                'name' => $rec['name'],
+                                'content' => $rec['content'],
+                                'ttl' => $rec['ttl'],
+                                'proxied' => $rec['proxied'] ?? false,
+                            ]
+                        );
+                        break;
+                    }
+                }
+            }
 
             if ($record) {
                 $domain->update([
@@ -235,65 +258,48 @@ class TrackedDomainController extends Controller
 
         foreach ($domains as $domain) {
             $records = @dns_get_record($domain->domain_name, DNS_A);
-            $ip = $records[0]['ip'] ?? null;
+            $dnsIp = $records[0]['ip'] ?? null;
+            $finalIp = $dnsIp;
 
-            if ($ip && CloudflareService::isCloudflareIp($ip)) {
-                $realIp = null;
+            // Try CF API for origin IP (if proxied) or to link unlinked domains
+            $needsCfLookup = $dnsIp && CloudflareService::isCloudflareIp($dnsIp);
+            $needsCfLink = !$domain->dns_record_id;
 
-                if ($domain->dnsRecord) {
-                    $account = $domain->dnsRecord->zone?->cloudflareAccount;
-                    if ($account) {
-                        $cf = new CloudflareService($account);
-                        $result = $cf->getDnsRecord(
-                            $domain->dnsRecord->zone->zone_id,
-                            $domain->dnsRecord->record_id
-                        );
-                        $realIp = $result['result']['content'] ?? null;
-                    }
-                }
+            if (($needsCfLookup || $needsCfLink) && $zone = Zone::where('name', $domain->zone_name)->first()) {
+                $account = $zone->cloudflareAccount;
 
-                if (!$realIp) {
-                    // Try to find the record via CF API by zone + domain name
-                    $zone = Zone::where('name', $domain->zone_name)->first();
-                    if ($zone && $zone->cloudflareAccount) {
-                        $cf = new CloudflareService($zone->cloudflareAccount);
-                        $records = $cf->getDnsRecords($zone->zone_id);
-                        foreach ($records['result'] ?? [] as $rec) {
-                            if ($rec['type'] === 'A' && $rec['name'] === $domain->domain_name) {
-                                $realIp = $rec['content'];
-                                // Auto-link the record
-                                $dnsRec = DnsRecord::firstOrCreate(
-                                    ['record_id' => $rec['id']],
-                                    [
-                                        'zone_id' => $zone->id,
-                                        'type' => 'A',
-                                        'name' => $rec['name'],
-                                        'content' => $rec['content'],
-                                        'ttl' => $rec['ttl'],
-                                        'proxied' => $rec['proxied'] ?? false,
-                                    ]
-                                );
-                                $domain->update([
-                                    'dns_record_id' => $dnsRec->id,
-                                    'ip_address' => $realIp,
-                                ]);
-                                break;
-                            }
+                if ($domain->dnsRecord && $account) {
+                    $cf = new CloudflareService($account);
+                    $result = $cf->getDnsRecord($zone->zone_id, $domain->dnsRecord->record_id);
+                    $finalIp = $result['result']['content'] ?? $dnsIp;
+                } elseif ($account) {
+                    $cf = new CloudflareService($account);
+                    $result = $cf->getDnsRecords($zone->zone_id);
+                    foreach ($result['result'] ?? [] as $rec) {
+                        if ($rec['type'] === 'A' && $rec['name'] === $domain->domain_name) {
+                            $finalIp = $rec['content'];
+                            $dnsRec = DnsRecord::firstOrCreate(
+                                ['record_id' => $rec['id']],
+                                [
+                                    'zone_id' => $zone->id,
+                                    'type' => 'A',
+                                    'name' => $rec['name'],
+                                    'content' => $rec['content'],
+                                    'ttl' => $rec['ttl'],
+                                    'proxied' => $rec['proxied'] ?? false,
+                                ]
+                            );
+                            $domain->update(['dns_record_id' => $dnsRec->id]);
+                            break;
                         }
                     }
                 }
-
-                if ($realIp) {
-                    $domain->update(['ip_address' => $realIp]);
-                    $resolved++;
-                    $cfResolved++;
-                    continue;
-                }
             }
 
-            if ($ip) {
-                $domain->update(['ip_address' => $ip]);
+            if ($finalIp) {
+                $domain->update(['ip_address' => $finalIp]);
                 $resolved++;
+                if ($needsCfLookup) $cfResolved++;
             } else {
                 $failed++;
             }
