@@ -13,6 +13,20 @@ APP_PORT="${APP_PORT:-26298}"
 PHP_SOCKET=$(find /run/php /var/run -name "php*-fpm.sock" 2>/dev/null | head -1)
 [[ -z "$PHP_SOCKET" ]] && PHP_SOCKET="/run/php/php8.4-fpm.sock"
 
+# Deteksi user web server
+detect_ws_user() {
+    if command -v apache2ctl &>/dev/null; then
+        local u; u=$(apache2ctl -S 2>/dev/null | grep -i "user:" | awk '{print $NF}')
+        [[ -n "$u" ]] && echo "$u" && return 0
+    fi
+    if command -v ps &>/dev/null; then
+        local u; u=$(ps aux 2>/dev/null | grep -E 'apache2|httpd|nginx' | grep -v grep | grep -v root | head -1 | awk '{print $1}')
+        [[ -n "$u" ]] && echo "$u" && return 0
+    fi
+    echo "www-data"
+}
+WS_USER=$(detect_ws_user)
+
 # ── Cek apakah IP milik Cloudflare ──
 is_cloudflare_ip() {
     local ip="$1"
@@ -247,8 +261,8 @@ fi
 # ── Add via Artisan ──
 info "Adding domain to tracked domains..."
 cd "$APP_DIR"
-sudo chown -R www-data:www-data storage database bootstrap/cache 2>/dev/null || true
-sudo -u www-data php artisan domain:track "$DOMAIN" --ip="$SERVER_IP"
+sudo chown -R "${WS_USER}:${WS_USER}" storage database bootstrap/cache 2>/dev/null || true
+sudo -u "$WS_USER" php artisan domain:track "$DOMAIN" --ip="$SERVER_IP"
 
 echo ""
 ok "Done! ${DOMAIN} is now tracked, SSL-enabled, and will be auto-synced."
