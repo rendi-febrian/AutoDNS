@@ -68,7 +68,7 @@ echo ""
 info "Domain: ${DOMAIN}"
 
 if [[ ! -f "${APP_DIR}/artisan" ]]; then
-    err "artisan not found. Run from the AutoDNS directory."
+    err "artisan not found. Run from the Auto DNS Domain directory."
     exit 1
 fi
 

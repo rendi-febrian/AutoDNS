@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'AutoDNS'),
+    'name' => env('APP_NAME', 'Auto DNS Domain'),
 
     /*
     |--------------------------------------------------------------------------

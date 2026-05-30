@@ -1,12 +1,12 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/AutoDNS_Dashboard-0f172a?style=for-the-badge&logo=cloudflare&logoColor=f38020">
-    <img alt="AutoDNS Dashboard" src="https://img.shields.io/badge/AutoDNS_Dashboard-0f172a?style=for-the-badge&logo=cloudflare&logoColor=f38020">
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Auto_DNS_Domain-0f172a?style=for-the-badge&logo=cloudflare&logoColor=f38020">
+    <img alt="Auto DNS Domain" src="https://img.shields.io/badge/Auto_DNS_Domain-0f172a?style=for-the-badge&logo=cloudflare&logoColor=f38020">
   </picture>
 </p>
 
 <p align="center">
-  <strong>Auto-update Cloudflare DNS A records to your server IP — automatically.</strong>
+  <strong>Auto-sync Cloudflare DNS A records to your server IP — no manual updates needed.</strong>
 </p>
 
 <div align="center">
@@ -19,77 +19,36 @@
 
 ---
 
-[Overview](#overview) •
-[Features](#features) •
-[Installation](#installation) •
-[Usage](#usage) •
-[Auto-Sync](#auto-sync-cron) •
-[API Reference](#api-reference) •
-[Project Structure](#project-structure) •
-[Testing](#testing) •
-[Security](#security) •
-[Author](#author) •
-[License](#license)
+**Auto DNS Domain** is a self-hosted Laravel web app that connects to Cloudflare via API Token, tracks your A records, and automatically syncs them whenever your server IP changes.
 
 ---
 
 </div>
 
-## Overview
-
-**AutoDNS Dashboard** is a self-hosted Laravel web application that connects to your Cloudflare account via API Token and lets you selectively track A records for automatic DNS synchronization.
-
-Whenever your server IP changes, run one command (or set a cron job) and all tracked A records update instantly to the new IP via the Cloudflare API.
-
-### Who is this for?
-
-- **Developers & SysAdmins** managing VPS servers with dynamic or changing IPs
-- **Self-hosters** who need to keep their Cloudflare DNS records in sync
-- **Agencies** managing multiple domains across multiple Cloudflare accounts
-
----
-
 ## Features
 
 | Feature | Description |
 |---|---|
-| **🔐 API Token Auth** | Enter your Cloudflare API Token directly in the UI — no OAuth, no .env config |
-| **🔍 Browse Zones** | View all zones from Cloudflare API in real-time |
-| **📋 Sync DNS Records** | Pull all DNS records from a zone into the local database |
-| **🎯 Track Domains** | Selectively choose which A records to include in auto-sync |
-| **🔄 Auto-Sync** | Update all tracked A records to current server IP — manually or via cron |
-| **📝 Manual Update** | Update single or bulk DNS records on demand |
-| **📂 Import Config** | Import domains from Nginx/Apache config files |
-| **📊 Activity Logs** | Full history of every DNS update with status and IP changes |
-| **⚡ Artisan Command** | `php artisan dns:auto-sync` for cron job automation |
-| **🔑 Default User** | `php artisan db:seed` — creates `admin@autodns.local` / `admin` |
-| **🌑 Dark UI** | Clean, modern dark interface built with Tailwind CSS |
-
----
-
-## Tech Stack
-
-```
-Laravel 13 + Breeze (Blade) + Tailwind CSS + Cloudflare API v4 + SQLite/MySQL
-```
-
----
+| **API Token Auth** | Enter Cloudflare API Token in the UI — no OAuth, no .env setup |
+| **Live Zone Browser** | Browse all zones directly from Cloudflare API |
+| **DNS Record Sync** | Pull records from any zone into local DB |
+| **Domain Tracking** | Select A records to include in auto-sync |
+| **Auto-Sync** | Update all tracked A records to current server IP — CLI or cron |
+| **Activity Logs** | Full history of every DNS update with status & IP changes |
+| **Import from Config** | Import domains from Nginx/Apache config files |
+| **One-Click Install** | `bash install.sh` — detects OS, installs deps, creates vhost |
+| **SSL via Certbot** | `bash add-domain.sh` → certbot + SSL on port 443 |
+| **Dark UI** | Modern dark interface with Tailwind CSS |
 
 ## Requirements
 
 - PHP 8.3+
 - Composer
-- Node.js & NPM (for frontend build)
-- Cloudflare account with **API Token** (permissions: `Zone:Read`, `DNS:Edit`, `User:Read`)
+- Node.js & NPM (frontend build)
+- Cloudflare API Token (permissions: `Zone:Read`, `DNS:Edit`)
 - SQLite (default) or MySQL/PostgreSQL
 
----
-
-## Installation
-
-### Option A — One-Click Install (System Service)
-
-Install with Nginx or Apache + PHP-FPM:
+## Quick Install
 
 ```bash
 sudo mkdir -p /opt/autodns
@@ -99,317 +58,122 @@ cd /opt/autodns
 sudo bash install.sh
 ```
 
-The `install.sh` script will:
+The installer will:
 
 | Step | What it does |
 |---|---|
 | 🔍 | Detect OS (Ubuntu/Debian/Fedora/CentOS) |
-| 📦 | Install PHP 8.3 + extensions + PHP-FPM, Composer, Node.js, Git |
-| 🎨 | Let you choose **Nginx** or **Apache** |
-| 🗄️ | Setup SQLite database from `database/sample.sqlite` |
-| ⚙️ | Run `composer install`, `npm run build`, `php artisan migrate` |
-| 🌐 | Create web server virtual host on port `80` |
-| 🔄 | Enable & restart all services |
+| 📦 | Install PHP 8.3 + FPM + extensions, Composer, Node.js, Git |
+| 🎨 | Choose Nginx or Apache |
+| 🗄️ | Setup SQLite database |
+| ⚙️ | Run `composer install`, `npm run build`, `migrate`, `seed` |
+| 🌐 | Create web server vhost on port 80 |
 
 After install:
 
 ```bash
-# First run — seed default admin user (opsional)
-cd /opt/autodns
+# Seed default admin user (optional)
 sudo -u www-data php artisan db:seed
 
-# Cek status web server & PHP-FPM
-systemctl status nginx    # atau apache2
-systemctl status php8.4-fpm
+# Add a domain
+bash add-domain.sh example.com
 
-# Add domain (pastikan A record sudah指向 server IP)
-bash /opt/autodns/add-domain.sh example.com
-
-# Akses web
+# Visit
 open http://<server-ip>
 ```
 
-> Default user: `admin@autodns.local` / `admin` (after running `php artisan db:seed`)
+> Default user: `admin@autodns.local` / `admin`
 
 ### Uninstall
 
 ```bash
-sudo bash /opt/autodns/uninstall.sh
+sudo bash uninstall.sh
 ```
 
-Menghapus:
-- `/opt/autodns/` + database SQLite
-- Vhost Nginx/Apache untuk autodns
+Removes the repo directory and vhost config. PHP, Composer, Node, Git, and other vhosts remain untouched.
 
-Tidak menyentuh PHP, Composer, Node.js, Git, web server, atau vhost lain.
-
-### Option B — Manual Setup
+## Add a Domain
 
 ```bash
-git clone https://github.com/rendi-febrian/AutoDNS.git
-cd AutoDNS
-
-# Setup SQLite database
-cp database/sample.sqlite database/database.sqlite
-
-# Setup environment & dependencies
-composer run setup
-
-# Edit .env — set APP_URL, etc.
-# Run the application (development only)
-php artisan serve
+bash add-domain.sh example.com
 ```
 
-Then open `http://localhost:8000`.
+The script:
 
-> **Note**: For development use only. For production, use Option A or configure Nginx/Apache manually.
+1. Checks A record resolves to server IP (Cloudflare proxy IP allowed)
+2. Updates `server_name` in vhost
+3. Installs certbot + obtains SSL certificate
+4. Injects SSL into vhost (port 443)
+5. Sets up auto-renew cron
+6. Finds zone in Cloudflare, creates/links A record
+7. Adds to tracked domains
 
-### Firewall
-
-If you have a firewall, standard HTTP:
+## Auto-Sync (Cron)
 
 ```bash
-# UFW
-sudo ufw allow 80/tcp
+# Manual
+php artisan dns:auto-sync
 
-# FirewallD
-sudo firewall-cmd --add-port=80/tcp --permanent
-sudo firewall-cmd --reload
+# Force update
+php artisan dns:auto-sync --force
 ```
 
----
+### Cron (every 5 min)
 
-## Cloudflare API Token
-
-Before using the app, you need to create an API Token in your Cloudflare dashboard.
-
-### Step-by-step
-
-1. Login ke [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Buka **My Profile** → **API Tokens** (atau langsung ke `https://dash.cloudflare.com/profile/api-tokens`)
-3. Klik **Create Token**
-4. Pilih template **Edit zone DNS**
-5. Di bagian **Permissions**, pastikan setelan seperti ini:
-
-   | Item | Value |
-   |---|---|
-   | Permissions | `Zone` → `DNS` → `Edit` |
-   | Permissions | `Zone` → `Zone` → `Read` |
-   | Permissions | `Account` → `Account Settings` → `Read` |
-   | Zone Resources | `Include` → `All zones` (atau pilih spesifik) |
-   | TTL | `No end date` (atau sesuai kebutuhan) |
-
-   > **Optional**: Tambah permission `User` → `User Details` → `Read` untuk auto-detect nama & email akun.
-
-   ![Create API Token](./image.png)
-
-6. Klik **Continue to Summary**, lalu **Create Token**
-7. Copy token yang muncul (bentuknya `cf_...`), simpan di tempat aman
-8. Masukkan token tersebut ke form di halaman **Cloudflare** → **Tambah Akun Cloudflare**
-
-### Catatan Penting
-
-- Token hanya ditampilkan **sekali** saat dibuat — simpan baik-baik
-- Di aplikasi, token disimpan **terenkripsi** di database
-- Kalau lupa, buat token baru dan ganti di aplikasi
-- Gunakan token dengan **minimal permission** yang diperlukan (prinsip least privilege)
-
----
+```cron
+*/5 * * * * cd /opt/autodns && php artisan dns:auto-sync >> storage/logs/dns-sync.log 2>&1
+```
 
 ## Usage
-
-### Quick Walkthrough
-
-| Step | Action | Description |
-|---|---|---|---|
-| 1 | Register / Login | Create your first account |
-| 2 | Connect Cloudflare | Enter API Token → auto-detect name & email |
-| 3 | Browse Zones | View all zones from Cloudflare API |
-| 4 | Sync DNS Records | Pull records into database |
-| 5 | Track Domains | Click **+ Track** on A records you want to auto-sync |
-| 6 | **Add Domain** (CLI) | `bash add-domain.sh example.com` — auto-checks DNS & links record |
-| 7 | Sync All | Click **Sync All to Server IP** or set up cron |
-
-### Detailed Guides
-
-| Guide | Description |
-|---|---|
-| [📖 HOWTO.md](./HOWTO.md) | Complete walkthrough: connecting Cloudflare, tracking domains, auto-sync, import config, logs, and more |
-| [📘 MVP.md](./MVP.md) | Project architecture: models, services, controllers, routes, and data flow |
-
-### Key Pages
 
 | Page | Route | Function |
 |---|---|---|
 | Dashboard | `/dashboard` | Overview stats, zones, recent activity |
 | Cloudflare | `/cloudflare/accounts` | Manage API tokens, browse zones |
 | DNS Records | `/zones/{zone}/records` | View, create, sync, track DNS records |
-| Tracked Domains | `/tracked-domains` | Manage auto-sync list, sync all, import config |
+| Tracked Domains | `/tracked-domains` | Manage auto-sync list |
 | DNS Update | `/dns/update` | Manual single or bulk DNS update |
-| Activity Logs | `/logs` | Full history of all DNS updates |
-
-## CLI — Add a Domain
-
-Tambahkan domain ke tracked domains langsung dari terminal. Script akan:
-
-1. Cek A record domain → harus指向 server IP (CF proxy IP diperbolehkan)
-2. Update `server_name` di vhost web server
-3. Install certbot & pasang SSL certificate (LetsEncrypt) via webroot
-4. Inject SSL ke vhost (port 443 + 80)
-5. Setup auto-renew cron kalau belum ada
-6. Cari zone di Cloudflare, buat A record kalau belum ada
-7. Link ke tracked domains (auto-sync langsung aktif)
-
-```bash
-cd /opt/autodns
-
-# Tambah domain (gagal kalau DNS belum指向 IP server)
-bash add-domain.sh example.com
-
-# Paksa tambah meski DNS belum指向
-php artisan domain:track example.com --force
-
-# Spesifik zone & IP
-php artisan domain:track example.co.id --zone=example.co.id --ip=103.x.x.x
-```
-
----
-
-## Auto-Sync (Cron)
-
-### Manual
-
-```bash
-php artisan dns:auto-sync
-
-# Force update even if IP hasn't changed
-php artisan dns:auto-sync --force
-```
-
-### Cron Job (every 5 minutes)
-
-```cron
-*/5 * * * * cd /opt/autodns && php artisan dns:auto-sync >> storage/logs/dns-sync.log 2>&1
-```
-
-### Using Shell Wrapper
-
-```bash
-# Edit auto-dns-sync.sh → set ARTISAN_PATH
-# Then add to crontab:
-*/5 * * * * /opt/autodns/auto-dns-sync.sh
-```
-
----
-
-## API Reference
-
-This project uses the [Cloudflare API v4](https://api.cloudflare.com) internally. Key endpoints used:
-
-| Cloudflare API | Purpose | Permission Required |
-|---|---|---|
-| `GET /user/tokens/verify` | Verify API token | — |
-| `GET /user` | Get account email & username | `User:Read` |
-| `GET /zones` | List all zones | `Zone:Read` |
-| `GET /zones/{id}/dns_records` | List DNS records | `Zone:Read` |
-| `PUT /zones/{id}/dns_records/{id}` | Update A record | `DNS:Edit` |
-| `POST /zones/{id}/dns_records` | Create DNS record | `DNS:Edit` |
-
-There is **no public REST API** — all operations are performed via the web UI or the `dns:auto-sync` Artisan command.
-
----
+| Activity Logs | `/logs` | Full history of DNS updates |
 
 ## Project Structure
 
 ```
 ├── app/
 │   ├── Console/Commands/
-│   │   ├── AutoSyncDns.php                  # dns:auto-sync artisan command
-│   │   └── DomainTrack.php                  # domain:track artisan command
+│   │   ├── AutoSyncDns.php              # dns:auto-sync
+│   │   └── DomainTrack.php              # domain:track
 │   ├── Http/Controllers/
-│   │   ├── CloudflareAccountController.php  # API token management
-│   │   ├── DnsController.php                # DNS records & updates
-│   │   └── TrackedDomainController.php      # Tracked domains CRUD
+│   │   ├── CloudflareAccountController.php
+│   │   ├── DnsController.php
+│   │   └── TrackedDomainController.php
 │   ├── Models/
-│   │   ├── CloudflareAccount.php            # Encrypted API token
-│   │   ├── Zone.php                         # Cloudflare zone
-│   │   ├── DnsRecord.php                    # DNS record (A, CNAME, etc.)
-│   │   ├── TrackedDomain.php                # Domain selected for auto-sync
-│   │   └── DnsUpdateLog.php                 # Update history
+│   │   ├── CloudflareAccount.php
+│   │   ├── Zone.php
+│   │   ├── DnsRecord.php
+│   │   ├── TrackedDomain.php
+│   │   └── DnsUpdateLog.php
 │   └── Services/
-│       ├── CloudflareService.php            # CF API v4 wrapper
-│       └── ConfigParserService.php          # Nginx/Apache config parser
-├── resources/views/                         # Blade + Tailwind dark UI
-├── tests/                                   # PHPUnit test suite (49 tests)
+│       ├── CloudflareService.php        # CF API v4 wrapper
+│       └── ConfigParserService.php      # Nginx/Apache config parser
+├── resources/views/                     # Blade + Tailwind dark UI
+├── tests/                               # 49 PHPUnit tests
 ├── database/
-│   ├── sample.sqlite                        # Empty SQLite placeholder
-│   └── migrations/                          # 5 migration files
-├── HOWTO.md                                 # Full usage guide
-├── MVP.md                                   # Architecture documentation
-├── install.sh                               # One-click install script
-├── auto-dns-sync.sh                         # Cron wrapper script
-├── add-domain.sh                            # CLI: check & add domain to tracking
-└── README.md                                # This file
+│   ├── sample.sqlite                    # Empty SQLite placeholder
+│   └── migrations/
+├── install.sh                           # One-click installer
+├── add-domain.sh                        # Add domain + SSL
+├── uninstall.sh
+├── auto-dns-sync.sh                     # Cron wrapper
+└── README.md
 ```
-
----
-
-## Testing
-
-Run the full test suite:
-
-```bash
-php artisan test
-```
-
-**49 tests** covering:
-
-| Category | Tests | What's verified |
-|---|---|---|
-| 🔒 Guest Access | 1 | Unauthenticated users redirected to login |
-| 🔐 Auth | 6 | Login, register, password reset, email verification |
-| 📊 Dashboard | 4 | Stats rendering, zones & logs display |
-| ☁️ Cloudflare | 4 | Account page, existing accounts, token validation |
-| 📋 DNS Records | 1 | Zone records page loads with forms |
-| 🎯 Tracked Domains | 7 | CRUD, validation, duplicates, import, sync |
-| 📝 DNS Update | 1 | Update page loads with zone/record selectors |
-| 📜 Logs | 2 | Activity logs page & data display |
-| ⚙️ Services | 5 | ConfigParserService: nginx, apache, zone detection |
-| 👤 Profile | 1 | Profile edit page |
-
----
 
 ## Security
 
-- **API Tokens encrypted at rest** using Laravel's `encrypted` cast
-- **No OAuth flow** — token stays in your database, never shared
-- **No API keys in .env** — all credentials managed via the UI
-- **Authentication required** — every route behind auth + email verification middleware
-- **Input validation** — all inputs validated before hitting Cloudflare API
-- **SQLite database ignored** by `.gitignore` — real data never committed
-
----
-
-## Author
-
-**Rendi Febrian**
-
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/rendi-febrian)
-[![Website](https://img.shields.io/badge/Website-0f172a?style=flat-square&logo=google-chrome&logoColor=white)](https://www.rendifebrian.com)
-[![Twitter](https://img.shields.io/badge/@rendifebrian__-000?style=flat-square&logo=x&logoColor=white)](https://twitter.com/rendifebrian__)
-
-- 💼 Founder at **Codenub**
-- 📍 Lampung, Indonesia
-- 🔧 Building tools for developers
-
----
+- API tokens encrypted at rest (Laravel `encrypted` cast)
+- No API keys in .env — all credentials via UI
+- All routes behind authentication
+- Input validation on all endpoints
 
 ## License
 
 MIT — see [LICENSE](./LICENSE).
-
----
-
-<p align="center">
-  <sub>Built with ❤️ using Laravel & Cloudflare API</sub>
-</p>

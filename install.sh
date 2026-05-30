@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────────
-# AutoDNS Dashboard — Installer
+# Auto DNS Domain — Installer
 # ─────────────────────────────────────────────────────
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -419,7 +419,7 @@ PUBLIC_IP=$(curl -4 -s --max-time 5 https://ipv4.icanhazip.com 2>/dev/null || ec
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN} ✅  AutoDNS Dashboard berhasil diinstall!${NC}"
+echo -e "${GREEN} ✅  Auto DNS Domain berhasil diinstall!${NC}"
 echo ""
 echo -e "     ${CYAN}Local:${NC}   http://${LOCAL_IP}:${APP_PORT}"
 if [[ "$PUBLIC_IP" != "Gagal deteksi" ]]; then

@@ -12,7 +12,7 @@ APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 [[ $EUID -eq 0 ]] || { err "Jalankan dengan sudo: sudo bash uninstall.sh"; exit 1; }
 
 echo ""
-echo -e "${YELLOW}⚠️  AutoDNS akan di-uninstall. Yang akan dihapus:${NC}"
+echo -e "${YELLOW}⚠️  Auto DNS Domain akan di-uninstall. Yang akan dihapus:${NC}"
 echo -e "   - ${APP_DIR}  (repo)"
 echo -e "   - Vhost Nginx/Apache untuk autodns"
 echo -e "   PHP, Composer, Node.js, Git ${GREEN}tidak${NC} disentuh."
@@ -35,7 +35,7 @@ ok "Direktori ${APP_DIR} dihapus"
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN} ✅  AutoDNS berhasil di-uninstall.${NC}"
+echo -e "${GREEN} ✅  Auto DNS Domain berhasil di-uninstall.${NC}"
 echo ""
 echo -e "     PHP, Composer, Node.js, Git tetap terinstall."
 echo -e "     Web server dan vhost lain tidak terganggu."

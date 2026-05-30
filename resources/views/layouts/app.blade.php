@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>{{ config('app.name', 'AutoDNS') }} @isset($title) — {{ $title }} @endisset</title>
+        <title>{{ config('app.name', 'Auto DNS Domain') }} @isset($title) — {{ $title }} @endisset</title>
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&display=swap" rel="stylesheet" />
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -22,7 +22,7 @@
                         </div>
                     </div>
                     <div>
-                        <span class="text-base font-bold text-white tracking-tight">AutoDNS</span>
+                        <span class="text-base font-bold text-white tracking-tight">Auto DNS Domain</span>
                         <span class="block text-[10px] text-gray-500 tracking-wider uppercase">Management</span>
                     </div>
                 </div>
@@ -89,7 +89,7 @@
                     <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
                         <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
                     </div>
-                    <span class="text-base font-bold text-white">AutoDNS</span>
+                    <span class="text-base font-bold text-white">Auto DNS Domain</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <form method="POST" action="{{ route('logout') }}">

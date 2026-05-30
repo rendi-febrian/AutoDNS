@@ -19,7 +19,7 @@
                     <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
                 <div class="flex-1">
-                    <h2 class="text-lg font-semibold text-white">Welcome to AutoDNS</h2>
+                    <h2 class="text-lg font-semibold text-white">Welcome to Auto DNS Domain</h2>
                     <p class="text-sm text-gray-400 mt-1 leading-relaxed">
                         Get started by connecting your Cloudflare account. Once connected, you can browse zones, sync DNS records, and enable auto-sync for your domains.
                     </p>
