@@ -9,6 +9,25 @@ err()   { echo -e "${RED}[ERR]${NC}  $1"; }
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# ── Cek apakah IP milik Cloudflare ──
+is_cloudflare_ip() {
+    local ip="$1"
+    [[ "$ip" =~ ^104\.(1[6-9]|2[0-9]|3[0-1])\. ]] && return 0
+    [[ "$ip" =~ ^172\.6[4-7]\. ]] && return 0
+    [[ "$ip" =~ ^173\.245\.(4[8-9]|[5-6][0-9])\. ]] && return 0
+    [[ "$ip" =~ ^103\.21\.244\. ]] && return 0
+    [[ "$ip" =~ ^103\.22\.20[0-9]\. ]] && return 0
+    [[ "$ip" =~ ^103\.31\.(4|5) ]] && return 0
+    [[ "$ip" =~ ^141\.101\. ]] && return 0
+    [[ "$ip" =~ ^108\.162\. ]] && return 0
+    [[ "$ip" =~ ^190\.93\. ]] && return 0
+    [[ "$ip" =~ ^188\.114\. ]] && return 0
+    [[ "$ip" =~ ^197\.234\. ]] && return 0
+    [[ "$ip" =~ ^198\.41\. ]] && return 0
+    [[ "$ip" =~ ^162\.158\. ]] && return 0
+    return 1
+}
+
 # ── Domain argument ──
 if [[ $# -lt 1 ]]; then
     echo -e "Usage: ${CYAN}bash add-domain.sh${NC} ${YELLOW}<domain>${NC}"
@@ -55,7 +74,6 @@ if command -v dig &>/dev/null; then
 elif command -v host &>/dev/null; then
     RESOLVED=$(host -t A "$DOMAIN" 2>/dev/null | awk '/has address/ {print $NF; exit}' || true)
 else
-    # fallback: use php/ping
     RESOLVED=$(php -r "echo gethostbyname('$DOMAIN');" 2>/dev/null || true)
 fi
 
@@ -69,16 +87,21 @@ fi
 
 ok "Resolved:  ${DOMAIN} → ${RESOLVED}"
 
-# ── Compare ──
+# ── Bandingkan IP ──
 if [[ "$RESOLVED" != "$SERVER_IP" ]]; then
-    err "Domain resolves to ${RESOLVED}, not server IP ${SERVER_IP}."
-    echo ""
-    echo -e "  ${YELLOW}Update the A record for ${DOMAIN} to point to ${SERVER_IP},${NC}"
-    echo -e "  ${YELLOW}wait for DNS propagation, then run this script again.${NC}"
-    exit 1
+    if is_cloudflare_ip "$RESOLVED"; then
+        warn "Domain is proxied by Cloudflare (${RESOLVED})."
+        warn "Skipping IP match — make sure the A record in Cloudflare points to ${SERVER_IP}."
+    else
+        err "Domain resolves to ${RESOLVED}, not server IP ${SERVER_IP}."
+        echo ""
+        echo -e "  ${YELLOW}Update the A record for ${DOMAIN} to point to ${SERVER_IP},${NC}"
+        echo -e "  ${YELLOW}wait for DNS propagation, then run this script again.${NC}"
+        exit 1
+    fi
 fi
 
-ok "Domain points to this server!"
+ok "Domain check passed!"
 
 # ── SSL via Certbot ──
 info "Setting up SSL certificate..."
