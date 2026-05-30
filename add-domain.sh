@@ -8,7 +8,10 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()   { echo -e "${RED}[ERR]${NC}  $1"; }
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_NAME="autodns"
 APP_PORT="${APP_PORT:-26298}"
+PHP_SOCKET=$(find /run/php /var/run -name "php*-fpm.sock" 2>/dev/null | head -1)
+[[ -z "$PHP_SOCKET" ]] && PHP_SOCKET="/run/php/php8.4-fpm.sock"
 
 # ── Cek apakah IP milik Cloudflare ──
 is_cloudflare_ip() {
@@ -184,11 +187,53 @@ if command -v certbot &>/dev/null; then
 
     # Pasang SSL ke vhost (port 26298)
     if [[ "$CERTBOT_OK" == true ]]; then
-        if [[ "$WS_PLUGIN" == "nginx" ]]; then
-            # Tambah listen 443 ssl + sertifikat ke server block
+        if [[ "$WS_PLUGIN" == "nginx" ]] && [[ -f /etc/nginx/sites-available/autodns ]]; then
             if ! grep -q "listen 443 ssl;" /etc/nginx/sites-available/autodns; then
-                sudo sed -i "/listen 80;/a\    listen 443 ssl;" /etc/nginx/sites-available/autodns
+                sudo sed -i "s|listen 80;|listen 80;\n    listen 443 ssl;|" /etc/nginx/sites-available/autodns
             fi
+            if ! grep -q "ssl_certificate " /etc/nginx/sites-available/autodns; then
+                sudo sed -i "s|server_name .*;|&\n    ssl_certificate ${LE_DIR}/fullchain.pem;\n    ssl_certificate_key ${LE_DIR}/privkey.pem;|" /etc/nginx/sites-available/autodns
+            fi
+            ok "Nginx SSL config added"
+
+        elif [[ "$WS_PLUGIN" == "apache" ]] && [[ -f /etc/apache2/sites-available/autodns.conf ]]; then
+            sudo a2enmod ssl >/dev/null 2>&1 || true
+            if ! grep -q "^Listen 443" /etc/apache2/ports.conf 2>/dev/null; then
+                echo "Listen 443" | sudo tee -a /etc/apache2/ports.conf >/dev/null
+            fi
+            # Append SSL vhost (lebih aman daripada sed rumit)
+            if ! grep -q "\*:443" /etc/apache2/sites-available/autodns.conf 2>/dev/null; then
+                cat <<EOF | sudo tee -a /etc/apache2/sites-available/autodns.conf >/dev/null
+
+<VirtualHost *:443>
+    ServerName ${DOMAIN}
+    DocumentRoot ${APP_DIR}/public
+
+    SSLEngine on
+    SSLCertificateFile ${LE_DIR}/fullchain.pem
+    SSLCertificateKeyFile ${LE_DIR}/privkey.pem
+
+    <Directory ${APP_DIR}/public>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    <FilesMatch \\.php\$>
+        SetHandler "proxy:unix:${PHP_SOCKET}|fcgi://localhost"
+    </FilesMatch>
+
+    ErrorLog \${APACHE_LOG_DIR}/${APP_NAME}_error.log
+    CustomLog \${APACHE_LOG_DIR}/${APP_NAME}_access.log combined
+</VirtualHost>
+EOF
+            fi
+            ok "Apache SSL config added"
+        fi
+
+        sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
+        ok "Web server reloaded"
+    fi
             if ! grep -q "ssl_certificate_key.*${DOMAIN}" /etc/nginx/sites-available/autodns; then
                 sudo sed -i "/server_name.*${DOMAIN}/a\    ssl_certificate ${LE_DIR}/fullchain.pem;\n    ssl_certificate_key ${LE_DIR}/privkey.pem;" /etc/nginx/sites-available/autodns
             fi
