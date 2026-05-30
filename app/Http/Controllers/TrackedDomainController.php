@@ -1,0 +1,200 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\DnsRecord;
+use App\Models\DnsUpdateLog;
+use App\Models\TrackedDomain;
+use App\Models\Zone;
+use App\Services\CloudflareService;
+use App\Services\ConfigParserService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class TrackedDomainController extends Controller
+{
+    public function index(): View
+    {
+        $trackedDomains = TrackedDomain::with('dnsRecord.zone')->latest()->get();
+        $zones = Zone::with('cloudflareAccount')->get();
+        return view('tracked-domains.index', compact('trackedDomains', 'zones'));
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'domain_name' => 'required|string|max:255|unique:tracked_domains,domain_name',
+            'zone_name' => 'required|string|max:255',
+            'dns_record_id' => 'nullable|exists:dns_records,id',
+        ]);
+
+        $tracked = TrackedDomain::create($validated);
+
+        if ($tracked->dns_record_id && $tracked->dnsRecord) {
+            $tracked->update(['ip_address' => $tracked->dnsRecord->content]);
+        }
+
+        return to_route('tracked-domains.index')->with('success', "Domain {$validated['domain_name']} added to tracking.");
+    }
+
+    public function update(Request $request, TrackedDomain $trackedDomain): RedirectResponse
+    {
+        $validated = $request->validate([
+            'domain_name' => 'required|string|max:255|unique:tracked_domains,domain_name,' . $trackedDomain->id,
+            'zone_name' => 'required|string|max:255',
+            'dns_record_id' => 'nullable|exists:dns_records,id',
+            'is_active' => 'boolean',
+        ]);
+
+        $trackedDomain->update($validated);
+
+        if ($trackedDomain->dns_record_id && $trackedDomain->dnsRecord) {
+            $trackedDomain->update(['ip_address' => $trackedDomain->dnsRecord->content]);
+        }
+
+        return to_route('tracked-domains.index')->with('success', "Domain {$validated['domain_name']} updated.");
+    }
+
+    public function destroy(TrackedDomain $trackedDomain): RedirectResponse
+    {
+        $trackedDomain->delete();
+        return to_route('tracked-domains.index')->with('success', 'Domain removed from tracking.');
+    }
+
+    public function syncAll(): RedirectResponse
+    {
+        $service = new CloudflareService;
+        $ip = $service->getPublicIp();
+
+        if (!$ip) {
+            return back()->with('error', 'Failed to detect server public IP.');
+        }
+
+        $domains = TrackedDomain::with('dnsRecord.zone.cloudflareAccount')
+            ->where('is_active', true)
+            ->whereNotNull('dns_record_id')
+            ->get();
+
+        if ($domains->isEmpty()) {
+            return back()->with('error', 'No active tracked domains with linked DNS records found.');
+        }
+
+        $successCount = 0;
+        $failCount = 0;
+        $ipChanged = false;
+
+        foreach ($domains as $domain) {
+            $record = $domain->dnsRecord;
+            $zone = $record->zone;
+            $account = $zone->cloudflareAccount;
+
+            if ($record->content === $ip) {
+                continue;
+            }
+
+            $ipChanged = true;
+            $oldIp = $record->content;
+            $cfService = new CloudflareService($account);
+            $result = $cfService->updateDnsRecord($zone->zone_id, $record->record_id, [
+                'type' => $record->type,
+                'name' => $record->name,
+                'content' => $ip,
+                'ttl' => $record->ttl,
+                'proxied' => $record->proxied,
+            ]);
+
+            DnsUpdateLog::create([
+                'tracked_domain_id' => $domain->id,
+                'zone_name' => $zone->name,
+                'record_name' => $record->name,
+                'record_type' => $record->type,
+                'old_ip' => $oldIp,
+                'new_ip' => $ip,
+                'status' => $result['success'] ? 'success' : 'failed',
+                'response_message' => $result['success'] ? 'Updated via sync-all' : ($result['errors'][0]['message'] ?? 'Unknown error'),
+            ]);
+
+            if ($result['success']) {
+                $record->update(['content' => $ip, 'synced_at' => now()]);
+                $domain->update(['ip_address' => $ip, 'last_synced_at' => now()]);
+                $successCount++;
+            } else {
+                $failCount++;
+            }
+        }
+
+        if (!$ipChanged) {
+            return back()->with('info', 'All domains already match current IP (' . $ip . '). No update needed.');
+        }
+
+        $message = "Synced {$successCount} domains to IP {$ip}.";
+        if ($failCount > 0) $message .= " {$failCount} failed.";
+
+        return back()->with('success', $message);
+    }
+
+    public function importConfig(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'config_type' => 'required|in:nginx,apache,manual',
+            'config_content' => 'required_if:config_type,manual|string',
+        ]);
+
+        $parser = new ConfigParserService;
+        $domains = [];
+
+        if ($validated['config_type'] === 'nginx') {
+            $domains = $parser->getNginxSitesEnabled();
+            if (empty($domains)) {
+                $parsed = $parser->parseNginxConfig($validated['config_content'] ?? '');
+                $domains = $parsed;
+            }
+        } elseif ($validated['config_type'] === 'apache') {
+            $domains = $parser->getApacheSitesEnabled();
+            if (empty($domains)) {
+                $parsed = $parser->parseApacheConfig($validated['config_content'] ?? '');
+                $domains = $parsed;
+            }
+        } else {
+            $domains = array_filter(array_map('trim', explode("\n", $validated['config_content'])));
+        }
+
+        if (empty($domains)) {
+            return back()->with('error', 'No domains found in config.');
+        }
+
+        $imported = 0;
+        $skipped = 0;
+
+        foreach ($domains as $domain) {
+            if (TrackedDomain::where('domain_name', $domain)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            $zoneName = $parser->detectZone($domain);
+            $zone = Zone::where('name', $zoneName)->first();
+
+            $record = null;
+            if ($zone) {
+                $record = DnsRecord::where('zone_id', $zone->id)
+                    ->where('name', $domain)
+                    ->where('type', 'A')
+                    ->first();
+            }
+
+            TrackedDomain::create([
+                'domain_name' => $domain,
+                'zone_name' => $zoneName,
+                'dns_record_id' => $record?->id,
+                'ip_address' => $record?->content,
+                'is_active' => true,
+            ]);
+
+            $imported++;
+        }
+
+        return back()->with('success', "Imported {$imported} domains" . ($skipped > 0 ? ", {$skipped} skipped (duplicates)" : ''));
+    }
+}
