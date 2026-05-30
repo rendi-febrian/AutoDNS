@@ -116,13 +116,13 @@ INSTALLED_CERTBOT=false
 if ! command -v certbot &>/dev/null; then
     info "Installing certbot..."
     if command -v snap &>/dev/null; then
-        snap install certbot --classic 2>/dev/null && INSTALLED_CERTBOT=true
+        sudo snap install certbot --classic 2>/dev/null && INSTALLED_CERTBOT=true
     fi
     if ! command -v certbot &>/dev/null; then
         if command -v apt &>/dev/null; then
-            apt install -y certbot 2>/dev/null && INSTALLED_CERTBOT=true
+            sudo apt install -y certbot 2>/dev/null && INSTALLED_CERTBOT=true
         elif command -v dnf &>/dev/null; then
-            dnf install -y certbot 2>/dev/null && INSTALLED_CERTBOT=true
+            sudo dnf install -y certbot 2>/dev/null && INSTALLED_CERTBOT=true
         fi
     fi
     if command -v certbot &>/dev/null; then
@@ -148,7 +148,7 @@ if command -v certbot &>/dev/null; then
             ok "SSL certificate already exists for ${DOMAIN}"
         else
             info "Running certbot --${WS_PLUGIN} for ${DOMAIN}..."
-            certbot --"${WS_PLUGIN}" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1 || {
+            sudo certbot --"${WS_PLUGIN}" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1 || {
                 warn "certbot failed for ${DOMAIN}. Run manually: sudo certbot --${WS_PLUGIN} -d ${DOMAIN}"
             }
         fi

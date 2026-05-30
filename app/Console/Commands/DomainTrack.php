@@ -19,6 +19,31 @@ class DomainTrack extends Command
 
     protected $description = 'Add a domain to tracked domains and link/create its A record in Cloudflare';
 
+    private function isCloudflareIp(string $ip): bool
+    {
+        $ranges = [
+            '/^173\.245\.(4[89]|5[0-9]|6[0-3])\./',
+            '/^103\.21\.24[4-7]\./',
+            '/^103\.22\.20[0-3]\./',
+            '/^103\.31\.[4-7]\./',
+            '/^141\.101\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./',
+            '/^108\.162\.(19[2-9]|2[0-4][0-9]|25[0-5])\./',
+            '/^190\.93\.(24[0-9]|25[0-5])\./',
+            '/^188\.114\.(9[6-9]|10[0-9]|11[0-1])\./',
+            '/^197\.234\.24[0-3]\./',
+            '/^198\.41\.(12[8-9]|1[3-9][0-9]|2[0-4][0-9]|25[0-5])\./',
+            '/^162\.15[89]\./',
+            '/^104\.(1[6-9]|2[0-3])\./',
+            '/^104\.(2[4-7])\./',
+            '/^172\.(6[4-9]|7[01])\./',
+            '/^131\.0\.(7[2-5])\./',
+        ];
+        foreach ($ranges as $pattern) {
+            if (preg_match($pattern, $ip)) return true;
+        }
+        return false;
+    }
+
     public function handle(ConfigParserService $parser): int
     {
         $domain = $this->argument('domain');
@@ -49,11 +74,16 @@ class DomainTrack extends Command
                 return self::FAILURE;
             }
             if ($resolved !== $ip) {
-                $this->error("Domain {$domain} resolves to {$resolved}, not server IP {$ip}.");
-                $this->line('Use --force to add anyway.');
-                return self::FAILURE;
+                if ($this->isCloudflareIp($resolved)) {
+                    $this->line("  [OK]   {$domain} → {$resolved} (Cloudflare proxy, skipping IP match)");
+                } else {
+                    $this->error("Domain {$domain} resolves to {$resolved}, not server IP {$ip}.");
+                    $this->line('Use --force to add anyway.');
+                    return self::FAILURE;
+                }
+            } else {
+                $this->line("  [OK]   {$domain} → {$resolved} (matches server IP)");
             }
-            $this->line("  [OK]   {$domain} → {$resolved} (matches server IP)");
         }
 
         // Find local DNS record
