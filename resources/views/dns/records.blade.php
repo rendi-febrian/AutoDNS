@@ -159,7 +159,7 @@
 
     {{-- Edit Modal --}}
     <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="w-full max-w-xl mx-auto rounded-2xl bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800/60 shadow-2xl shadow-black/50">
+        <div class="w-full max-w-xl mx-auto rounded-2xl bg-gray-950 border border-gray-800 shadow-2xl shadow-black/80">
             {{-- Header --}}
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800/50">
                 <div class="flex items-center gap-3">
@@ -182,7 +182,7 @@
                 @method('PUT')
 
                 @if($errors->any())
-                <div class="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                <div class="p-3.5 rounded-xl bg-red-900/30 border border-red-700/50">
                     <p class="text-xs font-medium text-red-400 mb-1">Validation errors:</p>
                     @foreach($errors->all() as $error)
                     <p class="text-xs text-red-300/80">{{ $error }}</p>
@@ -194,7 +194,7 @@
                 <div class="grid grid-cols-5 gap-3">
                     <div class="col-span-2">
                         <label class="block text-xs font-medium text-gray-400 mb-1.5">Record Type</label>
-                        <select name="type" id="editType" class="w-full px-3 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all cursor-pointer">
+                        <select name="type" id="editType" class="w-full px-3 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-gray-200 text-sm focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all cursor-pointer">
                             <option value="A">A</option>
                             <option value="AAAA">AAAA</option>
                             <option value="CNAME">CNAME</option>
@@ -205,7 +205,7 @@
                     </div>
                     <div class="col-span-3">
                         <label class="block text-xs font-medium text-gray-400 mb-1.5">TTL</label>
-                        <select name="ttl" id="editTtl" class="w-full px-3 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all cursor-pointer">
+                        <select name="ttl" id="editTtl" class="w-full px-3 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-gray-200 text-sm focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all cursor-pointer">
                             <option value="120">Auto</option>
                             <option value="60">1 minute</option>
                             <option value="300">5 minutes</option>
@@ -222,7 +222,7 @@
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600 text-xs select-none pointer-events-none font-mono" id="editNameSuffix"></span>
                         <input type="text" name="name" id="editName" required
-                            class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
                     </div>
                 </div>
 
@@ -232,11 +232,11 @@
                         Content <span class="text-gray-600 font-normal" id="editContentHint">(IP address for A records)</span>
                     </label>
                     <input type="text" name="content" id="editContent" required
-                        class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
                 </div>
 
                 {{-- Proxy --}}
-                <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-800/40 border border-gray-700/40">
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-900 border border-gray-700/50">
                     <div class="relative">
                         <input type="checkbox" name="proxied" id="editProxied" value="1"
                             class="peer w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/20 cursor-pointer">
@@ -252,7 +252,7 @@
                 {{-- Actions --}}
                 <div class="flex items-center gap-3 pt-1">
                     <button type="button" onclick="closeEdit()"
-                        class="flex-1 px-4 py-2.5 rounded-xl bg-gray-800/60 border border-gray-700/50 text-gray-400 text-sm font-medium hover:text-gray-200 hover:bg-gray-800 active:scale-[0.98] transition-all">
+                        class="flex-1 px-4 py-2.5 rounded-xl bg-gray-900 border border-gray-700/50 text-gray-400 text-sm font-medium hover:text-gray-200 hover:bg-gray-800 active:scale-[0.98] transition-all">
                         Cancel
                     </button>
                     <button type="submit"
@@ -315,7 +315,7 @@
             const el = document.getElementById('editProxyIcon');
             el.textContent = proxied ? '🟠' : '⚪';
             el.className = 'w-8 h-8 rounded-lg flex items-center justify-center text-lg' +
-                (proxied ? ' bg-amber-500/10' : ' bg-gray-700/30');
+                (proxied ? ' bg-amber-900/50' : ' bg-gray-800');
         }
 
         document.getElementById('editType')?.addEventListener('change', function() {
