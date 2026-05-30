@@ -120,8 +120,19 @@ fi
 
 # --- Node.js & NPM ---
 info "Memeriksa Node.js..."
-if ! command -v node &>/dev/null || ! command -v npm &>/dev/null; then
-    warn "Node.js/NPM belum terinstall. Menginstall..."
+
+# Cek NVM dulu
+NVM_NODE=""
+if [[ -f "${HOME}/.nvm/nvm.sh" ]]; then
+    source "${HOME}/.nvm/nvm.sh" --no-use 2>/dev/null || true
+    if command -v node &>/dev/null; then
+        NVM_NODE="yes"
+        ok "NVM terdeteksi, Node.js $(node -v) via NVM"
+    fi
+fi
+
+if [[ -z "$NVM_NODE" ]] && ! command -v node &>/dev/null; then
+    warn "Node.js/NPM belum terinstall. Menginstall dari repo..."
     case "$PKG" in
         apt)
             install_pkgs ca-certificates curl gnupg
@@ -137,7 +148,7 @@ if ! command -v node &>/dev/null || ! command -v npm &>/dev/null; then
             ;;
     esac
     ok "Node.js $(node -v) + NPM $(npm -v) terinstall"
-else
+elif [[ -z "$NVM_NODE" ]]; then
     ok "Node.js $(node -v) + NPM $(npm -v) sudah terinstall"
 fi
 
@@ -207,7 +218,7 @@ cd "$APP_DIR"
 # .env
 if [[ ! -f .env ]]; then
     cp .env.example .env
-    sed -i "s/APP_URL=.*/APP_URL=http://localhost:${APP_PORT}/" .env
+    sed -i "s|APP_URL=.*|APP_URL=http://localhost:${APP_PORT}|" .env
     sed -i "s/DB_CONNECTION=.*/DB_CONNECTION=sqlite/" .env
     # Hapus DB_HOST/DB_PORT/DB_DATABASE untuk sqlite biar clean
     sed -i "/^DB_HOST=/d" .env
