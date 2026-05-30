@@ -90,12 +90,13 @@
                             <th class="text-center px-5 py-3.5 font-semibold">TTL</th>
                             <th class="text-center px-5 py-3.5 font-semibold">Auto-Sync</th>
                             <th class="text-right px-5 py-3.5 font-semibold">Synced</th>
+                            <th class="text-right px-5 py-3.5 font-semibold"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-800/30">
                         @forelse($zone->dnsRecords as $record)
                         @php $isTracked = $record->trackedDomain()->exists(); @endphp
-                        <tr class="hover:bg-gray-800/20 transition-colors">
+                        <tr class="hover:bg-gray-800/20 transition-colors" id="row-{{ $record->id }}">
                             <td class="px-5 py-3.5">
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $record->type === 'A' ? 'bg-blue-500/10 text-blue-400' : ($record->type === 'CNAME' ? 'bg-purple-500/10 text-purple-400' : 'bg-gray-500/10 text-gray-400') }}">
                                     {{ $record->type }}
@@ -134,10 +135,15 @@
                                 @endif
                             </td>
                             <td class="px-5 py-3.5 text-right text-gray-600 text-xs">{{ $record->synced_at?->diffForHumans() ?? 'Never' }}</td>
+                            <td class="px-5 py-3.5 text-right">
+                                <button onclick="openEdit({{ $record->id }})" class="text-[11px] px-2.5 py-1 rounded-lg bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50 active:scale-[0.98] transition-all">
+                                    Edit
+                                </button>
+                            </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="px-5 py-10 text-center text-gray-500 text-sm">Belum ada DNS records. Sync atau buat baru.</td>
+                            <td colspan="8" class="px-5 py-10 text-center text-gray-500 text-sm">Belum ada DNS records. Sync atau buat baru.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -145,4 +151,87 @@
             </div>
         </div>
     </div>
+
+    {{-- Edit Modal --}}
+    <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="w-full max-w-lg mx-4 rounded-2xl bg-gray-900 border border-gray-700/50 shadow-2xl">
+            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-white">Edit DNS Record</h3>
+                <button onclick="closeEdit()" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-gray-200 transition-all">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <form id="editForm" method="POST" class="p-5 space-y-4">
+                @csrf
+                @method('PUT')
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1.5">Type</label>
+                        <select name="type" id="editType" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                            <option value="A">A</option>
+                            <option value="AAAA">AAAA</option>
+                            <option value="CNAME">CNAME</option>
+                            <option value="MX">MX</option>
+                            <option value="TXT">TXT</option>
+                            <option value="NS">NS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1.5">TTL</label>
+                        <select name="ttl" id="editTtl" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                            <option value="120">Auto (120)</option>
+                            <option value="60">1 min</option>
+                            <option value="300">5 min</option>
+                            <option value="3600">1 hour</option>
+                            <option value="86400">24 hours</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1.5">Name</label>
+                    <input type="text" name="name" id="editName" required class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1.5">Content</label>
+                    <input type="text" name="content" id="editContent" required class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                </div>
+                <label class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 text-sm cursor-pointer hover:bg-gray-800/80 transition-all">
+                    <input type="checkbox" name="proxied" id="editProxied" value="1" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/20">
+                    <span>Proxy through Cloudflare</span>
+                </label>
+                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:from-blue-400 hover:to-cyan-400 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-blue-500/10">
+                    Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+        const records = @json($zone->dnsRecords);
+        const baseRoute = '{{ url("/zones/records") }}';
+
+        function openEdit(id) {
+            const rec = records.find(r => r.id === id);
+            if (!rec) return;
+            document.getElementById('editForm').action = baseRoute + '/' + id;
+            document.getElementById('editType').value = rec.type;
+            document.getElementById('editName').value = rec.name;
+            document.getElementById('editContent').value = rec.content;
+            document.getElementById('editTtl').value = rec.ttl;
+            document.getElementById('editProxied').checked = rec.proxied;
+            document.getElementById('editModal').classList.remove('hidden');
+            document.getElementById('editModal').classList.add('flex');
+        }
+
+        function closeEdit() {
+            document.getElementById('editModal').classList.add('hidden');
+            document.getElementById('editModal').classList.remove('flex');
+        }
+
+        document.getElementById('editModal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeEdit();
+        });
+    </script>
+    @endpush
 </x-app-layout>

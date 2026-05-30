@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/zones/{zone}/records', [DnsController::class, 'records'])->name('zones.records');
     Route::post('/zones/{zone}/records/sync', [DnsController::class, 'syncRecords'])->name('zones.records.sync');
     Route::post('/zones/{zone}/records/create', [DnsController::class, 'createRecord'])->name('zones.records.create');
+    Route::put('/zones/records/{dnsRecord}', [DnsController::class, 'updateRecord'])->name('zones.records.update');
 
     // Tracked Domains
     Route::prefix('tracked-domains')->name('tracked-domains.')->group(function () {

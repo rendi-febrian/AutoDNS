@@ -82,6 +82,60 @@ class DnsController extends Controller
         return to_route('zones.records', $zone)->with('success', 'DNS record created.');
     }
 
+    public function updateRecord(Request $request, DnsRecord $dnsRecord): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'content' => 'required|string|max:500',
+            'type' => 'required|string|in:A,AAAA,CNAME,MX,TXT,NS,SRV',
+            'ttl' => 'nullable|integer|min:60|max:86400',
+            'proxied' => 'nullable|boolean',
+        ]);
+
+        $dnsRecord->load('zone.cloudflareAccount');
+        $service = new CloudflareService($dnsRecord->zone->cloudflareAccount);
+        $oldContent = $dnsRecord->content;
+
+        $result = $service->updateDnsRecord($dnsRecord->zone->zone_id, $dnsRecord->record_id, [
+            'type' => $validated['type'],
+            'name' => $validated['name'],
+            'content' => $validated['content'],
+            'ttl' => $validated['ttl'] ?? 120,
+            'proxied' => $validated['proxied'] ?? false,
+        ]);
+
+        if (!$result['success']) {
+            return back()->with('error', 'Gagal update: ' . ($result['errors'][0]['message'] ?? 'Unknown error'));
+        }
+
+        $dnsRecord->update([
+            'type' => $validated['type'],
+            'name' => $validated['name'],
+            'content' => $validated['content'],
+            'ttl' => $validated['ttl'] ?? 120,
+            'proxied' => $validated['proxied'] ?? false,
+            'synced_at' => now(),
+        ]);
+
+        $trackedDomain = TrackedDomain::where('dns_record_id', $dnsRecord->id)->first();
+        if ($trackedDomain && $validated['content'] !== $oldContent) {
+            $trackedDomain->update(['ip_address' => $validated['content'], 'last_synced_at' => now()]);
+        }
+
+        DnsUpdateLog::create([
+            'tracked_domain_id' => $trackedDomain?->id,
+            'zone_name' => $dnsRecord->zone->name,
+            'record_name' => $dnsRecord->name,
+            'record_type' => $dnsRecord->type,
+            'old_ip' => $oldContent,
+            'new_ip' => $validated['content'],
+            'status' => 'success',
+            'response_message' => 'Updated via edit',
+        ]);
+
+        return back()->with('success', "Record {$dnsRecord->name} updated.");
+    }
+
     public function updateSingle(Request $request): RedirectResponse
     {
         $validated = $request->validate([
