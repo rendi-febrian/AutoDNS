@@ -88,13 +88,15 @@ class TrackedDomainController extends Controller
                 $cf = new CloudflareService($zone->cloudflareAccount);
                 $result = $cf->getDnsRecords($zone->zone_id);
                 foreach ($result['result'] ?? [] as $rec) {
-                    if ($rec['type'] === 'A' && $rec['name'] === $domain->domain_name) {
+                    $recName = rtrim($rec['name'] ?? '', '.');
+                    $domName = rtrim($domain->domain_name, '.');
+                    if ($rec['type'] === 'A' && strcasecmp($recName, $domName) === 0) {
                         $record = DnsRecord::firstOrCreate(
                             ['record_id' => $rec['id']],
                             [
                                 'zone_id' => $zone->id,
                                 'type' => 'A',
-                                'name' => $rec['name'],
+                                'name' => $recName,
                                 'content' => $rec['content'],
                                 'ttl' => $rec['ttl'],
                                 'proxied' => $rec['proxied'] ?? false,
@@ -120,9 +122,18 @@ class TrackedDomainController extends Controller
 
         if ($domains->isEmpty()) {
             $total = TrackedDomain::count();
-            $msg = $total > 0
-                ? "No domains with linked DNS records. Sync zone records first, then run Resolve DNS to link them."
-                : 'No tracked domains found. Add domains first.';
+            $debug = '';
+            if ($total > 0) {
+                $sample = TrackedDomain::with('dnsRecord.zone')->latest()->first();
+                $zone = Zone::where('name', $sample->zone_name)->first();
+                $debug = "TOTAL={$total} ZONE_FOUND=" . ($zone ? 'yes' : 'no');
+                if ($zone) {
+                    $debug .= " ZONE_ACCOUNT=" . ($zone->cloudflareAccount ? 'yes' : 'no');
+                }
+                $msg = "No domains with linked DNS records. {$debug}";
+            } else {
+                $msg = 'No tracked domains found. Add domains first.';
+            }
             return back()->with('error', $msg);
         }
 
@@ -275,15 +286,19 @@ class TrackedDomainController extends Controller
                 } elseif ($account) {
                     $cf = new CloudflareService($account);
                     $result = $cf->getDnsRecords($zone->zone_id);
+                    $matched = [];
                     foreach ($result['result'] ?? [] as $rec) {
-                        if ($rec['type'] === 'A' && $rec['name'] === $domain->domain_name) {
+                        $recName = rtrim($rec['name'] ?? '', '.');
+                        $domName = rtrim($domain->domain_name, '.');
+                        if ($rec['type'] === 'A' && strcasecmp($recName, $domName) === 0) {
+                            $matched[] = $recName;
                             $finalIp = $rec['content'];
                             $dnsRec = DnsRecord::firstOrCreate(
                                 ['record_id' => $rec['id']],
                                 [
                                     'zone_id' => $zone->id,
                                     'type' => 'A',
-                                    'name' => $rec['name'],
+                                    'name' => $recName,
                                     'content' => $rec['content'],
                                     'ttl' => $rec['ttl'],
                                     'proxied' => $rec['proxied'] ?? false,
@@ -292,6 +307,9 @@ class TrackedDomainController extends Controller
                             $domain->update(['dns_record_id' => $dnsRec->id]);
                             break;
                         }
+                    }
+                    if (empty($matched) && $needsCfLink) {
+                        return back()->with('error', 'CF API no match for ' . $domain->domain_name . '. Zone: ' . $zone->name . ', Account: ' . ($account->name ?? '?') . ', Records: ' . count($result['result'] ?? []));
                     }
                 }
             }
