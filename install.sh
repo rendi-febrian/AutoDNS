@@ -379,6 +379,17 @@ systemctl enable "$PHP_FPM_SERVICE_NAME" >/dev/null 2>&1 || true
 systemctl restart "$PHP_FPM_SERVICE_NAME" >/dev/null 2>&1
 systemctl enable "$WS_SERVICE" >/dev/null 2>&1 || true
 systemctl restart "$WS_SERVICE" >/dev/null 2>&1
+
+# Cek status
+echo ""
+echo -e "  ${CYAN}Service Status:${NC}"
+for svc in "$PHP_FPM_SERVICE_NAME" "$WS_SERVICE"; do
+    if systemctl is-active --quiet "$svc"; then
+        echo -e "  ${GREEN}●${NC} $svc ${GREEN}(running)${NC}"
+    else
+        echo -e "  ${RED}✗${NC} $svc ${RED}(not running)${NC}"
+    fi
+done
 ok "Service aktif: ${WS_SERVICE} + ${PHP_FPM_SERVICE_NAME}"
 
 # ─────────────────────────────────────────────────────
