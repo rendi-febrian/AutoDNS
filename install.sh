@@ -299,6 +299,9 @@ info "Menjalankan migrasi database..."
 php artisan migrate --force --quiet
 ok "Migrasi selesai"
 
+php artisan db:seed --force --quiet 2>/dev/null || true
+ok "Seeder selesai (default user: admin@autodns.local / admin)"
+
 # ─────────────────────────────────────────────────────
 # 7. Setup Web Server Vhost
 # ─────────────────────────────────────────────────────
