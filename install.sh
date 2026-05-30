@@ -370,27 +370,6 @@ esac
 ok "Konfigurasi ${WS_EXTRA} dibuat di ${WS_VHOST_FILE}"
 
 # ─────────────────────────────────────────────────────
-# 8. Buat systemd autodns.service (meta-service)
-# ─────────────────────────────────────────────────────
-AUTODNS_SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
-cat > "$AUTODNS_SERVICE_FILE" <<EOF
-[Unit]
-Description=AutoDNS Dashboard (${WS_EXTRA} + PHP-FPM)
-After=network.target ${PHP_FPM_SERVICE_NAME}.service ${WS_SERVICE}.service
-Wants=${PHP_FPM_SERVICE_NAME}.service ${WS_SERVICE}.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/true
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl daemon-reload
-ok "systemd ${APP_NAME}.service siap (systemctl status ${APP_NAME})"
-
-# ─────────────────────────────────────────────────────
 # 9. Enable & restart services
 # ─────────────────────────────────────────────────────
 PHP_FPM_SERVICE_NAME="${PHP_FPM_SERVICE}"
@@ -441,7 +420,7 @@ fi
 echo ""
 echo -e "     ${YELLOW}Direktori:${NC} ${APP_DIR}"
 echo -e "     ${YELLOW}Web Server:${NC} ${WS_EXTRA}"
-echo -e "     ${YELLOW}Manage:${NC}    ${CYAN}systemctl status${NC} autodns"
+echo -e "     ${YELLOW}Manage:${NC}    ${CYAN}systemctl restart${NC} ${WS_SERVICE}"
 echo ""
 if [[ -n "$FIREWALL_CMD" ]]; then
     echo -e "     ${YELLOW}⚠️  Firewall terdeteksi aktif. Izinkan port:${NC}"

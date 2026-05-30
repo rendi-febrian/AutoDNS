@@ -14,24 +14,12 @@ APP_NAME="autodns"
 echo ""
 echo -e "${YELLOW}⚠️  AutoDNS akan di-uninstall. File berikut akan dihapus:${NC}"
 echo -e "   - ${APP_DIR}        (repo aplikasi)"
-echo -e "   - /etc/systemd/system/${APP_NAME}.service"
 echo ""
 echo -e "   Apache/Nginx config akan ${RED}dinonaktifkan${NC}, tidak dihapus."
 echo -e "   PHP, Composer, Node.js, Git ${GREEN}tidak${NC} akan dihapus."
 echo ""
 read -rp "Lanjutkan? [y/N]: " CONFIRM
 [[ "$CONFIRM" =~ ^[Yy]$ ]] || { info "Dibatalkan."; exit 0; }
-
-# ── Hapus systemd service ──
-if systemctl is-enabled --quiet "${APP_NAME}.service" 2>/dev/null; then
-    systemctl disable "${APP_NAME}.service" >/dev/null 2>&1
-    info "${APP_NAME}.service dinonaktifkan"
-fi
-if [[ -f "/etc/systemd/system/${APP_NAME}.service" ]]; then
-    rm -f "/etc/systemd/system/${APP_NAME}.service"
-    systemctl daemon-reload
-    ok "${APP_NAME}.service dihapus"
-fi
 
 # ── Nonaktifkan web server vhost ──
 # Deteksi web server dari yang aktif
