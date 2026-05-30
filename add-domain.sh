@@ -144,13 +144,32 @@ if command -v certbot &>/dev/null; then
     fi
 
     if [[ -n "$WS_PLUGIN" ]]; then
-        if certbot certificates 2>/dev/null | grep -q "Domains:.*\b${DOMAIN}\b"; then
+        CERTBOT_OK=false
+        if sudo certbot certificates 2>/dev/null | grep -q "Domains:.*\b${DOMAIN}\b"; then
             ok "SSL certificate already exists for ${DOMAIN}"
+            CERTBOT_OK=true
         else
             info "Running certbot --${WS_PLUGIN} for ${DOMAIN}..."
-            sudo certbot --"${WS_PLUGIN}" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1 || {
+            if sudo certbot --"${WS_PLUGIN}" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1; then
+                CERTBOT_OK=true
+            else
                 warn "certbot failed for ${DOMAIN}. Run manually: sudo certbot --${WS_PLUGIN} -d ${DOMAIN}"
-            }
+            fi
+        fi
+
+        # Update HTTP vhost server_name dan reload
+        if [[ "$CERTBOT_OK" == true ]]; then
+            if [[ "$WS_PLUGIN" == "nginx" ]] && [[ -f /etc/nginx/sites-available/autodns ]]; then
+                sudo sed -i "s/server_name _;/server_name ${DOMAIN};/" /etc/nginx/sites-available/autodns
+                sudo systemctl reload nginx
+                ok "Nginx vhost updated & reloaded"
+            elif [[ "$WS_PLUGIN" == "apache" ]] && [[ -f /etc/apache2/sites-available/autodns.conf ]]; then
+                if ! grep -q "ServerName ${DOMAIN}" /etc/apache2/sites-available/autodns.conf; then
+                    sudo sed -i "s/ServerAdmin.*/&\n\tServerName ${DOMAIN}/" /etc/apache2/sites-available/autodns.conf
+                fi
+                sudo systemctl reload apache2
+                ok "Apache vhost updated & reloaded"
+            fi
         fi
     else
         warn "No active web server (nginx/apache) detected. Run certbot manually."
