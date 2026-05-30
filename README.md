@@ -253,9 +253,12 @@ Before using the app, you need to create an API Token in your Cloudflare dashboa
 Tambahkan domain ke tracked domains langsung dari terminal. Script akan:
 
 1. Cek A record domain → harus指向 server IP (CF proxy IP diperbolehkan)
-2. Update server_name di vhost web server
-3. Cari zone di Cloudflare, buat A record kalau belum ada
-4. Link ke tracked domains (auto-sync langsung aktif)
+2. Update `server_name` di vhost web server
+3. Install certbot & pasang SSL certificate (LetsEncrypt) via webroot
+4. Inject SSL ke vhost (port 443 + 80)
+5. Setup auto-renew cron kalau belum ada
+6. Cari zone di Cloudflare, buat A record kalau belum ada
+7. Link ke tracked domains (auto-sync langsung aktif)
 
 ```bash
 cd /opt/autodns
