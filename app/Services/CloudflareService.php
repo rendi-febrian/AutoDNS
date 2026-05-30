@@ -92,6 +92,12 @@ class CloudflareService
         return $resp->json();
     }
 
+    public function deleteDnsRecord(string $zoneId, string $recordId): array
+    {
+        $resp = $this->request()->delete("{$this->baseUrl}/zones/{$zoneId}/dns_records/{$recordId}");
+        return $resp->json();
+    }
+
     public function getPublicIp(): ?string
     {
         try {

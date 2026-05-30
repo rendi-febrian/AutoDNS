@@ -174,16 +174,74 @@ class TrackedDomainController extends Controller
             $account = $zone->cloudflareAccount;
 
             if ($record->type !== 'A') {
+                $ipChanged = true;
+                $cfService = new CloudflareService($account);
+                $oldContent = $record->content;
+                $oldType = $record->type;
+
+                $delResult = $cfService->deleteDnsRecord($zone->zone_id, $record->record_id);
+                if (!isset($delResult['success']) || !$delResult['success']) {
+                    DnsUpdateLog::create([
+                        'tracked_domain_id' => $domain->id,
+                        'zone_name' => $zone->name,
+                        'record_name' => $record->name,
+                        'record_type' => $oldType,
+                        'old_ip' => $oldContent,
+                        'new_ip' => $ip,
+                        'status' => 'failed',
+                        'response_message' => 'Gagal hapus ' . $oldType . ': ' . ($delResult['errors'][0]['message'] ?? 'Unknown'),
+                    ]);
+                    $failCount++;
+                    continue;
+                }
+
+                $createResult = $cfService->createDnsRecord($zone->zone_id, [
+                    'type' => 'A',
+                    'name' => $record->name,
+                    'content' => $ip,
+                    'ttl' => $record->ttl,
+                    'proxied' => $record->proxied,
+                ]);
+
+                if (!isset($createResult['success']) || !$createResult['success']) {
+                    DnsUpdateLog::create([
+                        'tracked_domain_id' => $domain->id,
+                        'zone_name' => $zone->name,
+                        'record_name' => $record->name,
+                        'record_type' => 'A',
+                        'old_ip' => $oldContent,
+                        'new_ip' => $ip,
+                        'status' => 'failed',
+                        'response_message' => 'Gagal buat A record: ' . ($createResult['errors'][0]['message'] ?? 'Unknown'),
+                    ]);
+                    $failCount++;
+                    continue;
+                }
+
+                $r = $createResult['result'];
+                $record->update([
+                    'record_id' => $r['id'],
+                    'type' => 'A',
+                    'name' => rtrim($r['name'] ?? '', '.'),
+                    'content' => $r['content'],
+                    'ttl' => $r['ttl'],
+                    'proxied' => $r['proxied'] ?? false,
+                    'synced_at' => now(),
+                ]);
+                $domain->update(['ip_address' => $ip, 'last_synced_at' => now()]);
+
                 DnsUpdateLog::create([
                     'tracked_domain_id' => $domain->id,
                     'zone_name' => $zone->name,
                     'record_name' => $record->name,
-                    'record_type' => $record->type,
-                    'old_ip' => $record->content,
-                    'new_ip' => $record->content,
-                    'status' => 'skipped',
-                    'response_message' => 'Bukan A record, auto-sync hanya untuk A record',
+                    'record_type' => 'A',
+                    'old_ip' => $oldContent,
+                    'new_ip' => $ip,
+                    'status' => 'converted',
+                    'response_message' => "Converted from {$oldType} to A",
                 ]);
+
+                $successCount++;
                 continue;
             }
 
