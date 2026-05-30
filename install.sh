@@ -208,8 +208,8 @@ case "$WS_CHOICE" in
         WS_SERVICE="apache2"
         WS_SITES_AVAILABLE="/etc/apache2/sites-available"
         WS_SITES_ENABLED="/etc/apache2/sites-enabled"
-        WS_VHOST_FILE="${WS_SITES_AVAILABLE}/${APP_NAME}.conf"
-        WS_VHOST_ENABLED="${WS_SITES_ENABLED}/${APP_NAME}.conf"
+        WS_VHOST_FILE="${WS_SITES_AVAILABLE}/000-${APP_NAME}.conf"
+        WS_VHOST_ENABLED="${WS_SITES_ENABLED}/000-${APP_NAME}.conf"
         WS_DEFAULT_DISABLED="${WS_SITES_ENABLED}/000-default.conf"
         APACHE_MODS_DIR="/etc/apache2/mods-enabled"
         WS_EXTRA="Apache"
@@ -366,7 +366,7 @@ EOF
         a2enmod rewrite proxy_fcgi >/dev/null 2>&1 || true
         # Disable default, enable our site
         a2dissite 000-default >/dev/null 2>&1 || true
-        a2ensite "${APP_NAME}.conf" >/dev/null 2>&1 || true
+        a2ensite "000-${APP_NAME}.conf" >/dev/null 2>&1 || true
         # Change listen port
         if ! grep -q "^Listen ${APP_PORT}" /etc/apache2/ports.conf 2>/dev/null; then
             echo "Listen ${APP_PORT}" >> /etc/apache2/ports.conf

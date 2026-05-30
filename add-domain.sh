@@ -266,5 +266,14 @@ cd "$APP_DIR"
 sudo chown -R "${WS_USER}:${WS_USER}" storage database bootstrap/cache 2>/dev/null || true
 sudo -u "$WS_USER" php artisan domain:track "$DOMAIN" --ip="$SERVER_IP"
 
+# ── Rename vhost ke 000- biar priority SSL default ──
+if [[ -f /etc/apache2/sites-available/autodns.conf ]] && [[ ! -f /etc/apache2/sites-available/000-autodns.conf ]]; then
+    sudo mv /etc/apache2/sites-available/autodns.conf /etc/apache2/sites-available/000-autodns.conf
+    sudo a2dissite autodns.conf 2>/dev/null || true
+    sudo a2ensite 000-autodns.conf 2>/dev/null || true
+    sudo systemctl reload apache2 2>/dev/null || true
+    info "Vhost renamed to 000-autodns.conf (SSL priority fixed)"
+fi
+
 echo ""
 ok "Done! ${DOMAIN} is now tracked, SSL-enabled, and will be auto-synced."
