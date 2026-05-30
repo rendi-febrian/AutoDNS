@@ -2,10 +2,12 @@
 set -euo pipefail
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+BGREEN='\033[42m'; BNC='\033[0m'
 pass() { echo -e "  ${GREEN}✓${NC} $1"; }
 fail() { echo -e "  ${RED}✗${NC} $1"; }
 warn() { echo -e "  ${YELLOW}⚠${NC} $1"; }
 info() { echo -e "  ${CYAN}→${NC} $1"; }
+fixed() { echo -e " ${BGREEN} ✓${NC} ${BGREEN}$1${BNC}"; }
 
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="autodns"
@@ -25,7 +27,7 @@ try_fix() {
     local desc="$1"; shift
     if ! $FIX_MODE; then return 1; fi
     if "$@" 2>/dev/null; then
-        pass "${desc} (fixed)"; FIXED=$((FIXED+1)); return 0
+        fixed "$desc"; FIXED=$((FIXED+1)); return 0
     else
         warn "${desc} — gagal auto-fix. Manual: $*"; WARN=$((WARN+1)); return 1
     fi
@@ -65,7 +67,7 @@ if [[ -f "${APP_DIR}/.env" ]]; then
     pass ".env exists"; PASS=$((PASS+1))
 else
     if try_fix ".env missing" cp "${APP_DIR}/.env.example" "${APP_DIR}/.env"; then
-        pass ".env created"; PASS=$((PASS+1))
+        PASS=$((PASS+1))
     else
         fail ".env missing — cp .env.example .env"; FAIL=$((FAIL+1))
     fi
@@ -75,7 +77,7 @@ if grep -q "APP_KEY=" "${APP_DIR}/.env" 2>/dev/null && ! grep -q "APP_KEY=$" "${
     pass "APP_KEY is set"; PASS=$((PASS+1))
 else
     if try_fix "APP_KEY not set" php "${APP_DIR}/artisan" key:generate --force --quiet; then
-        pass "APP_KEY generated"; PASS=$((PASS+1))
+        PASS=$((PASS+1))
     else
         fail "APP_KEY not set — php artisan key:generate"; FAIL=$((FAIL+1))
     fi
@@ -86,7 +88,7 @@ if [[ -f "$DB_FILE" ]]; then
     pass "SQLite database exists"; PASS=$((PASS+1))
 else
     if try_fix "database.sqlite missing" cp "${APP_DIR}/database/sample.sqlite" "$DB_FILE"; then
-        pass "database.sqlite created"; PASS=$((PASS+1))
+        PASS=$((PASS+1))
     else
         fail "database.sqlite missing"; FAIL=$((FAIL+1))
     fi
@@ -98,7 +100,7 @@ for dir in storage bootstrap/cache database; do
     else
         ws_u=$(detect_ws_user)
         if try_fix "${dir} permissions" sudo chown -R "${ws_u}:${ws_u}" "${APP_DIR}/${dir}"; then
-            pass "${dir} permissions fixed"; PASS=$((PASS+1))
+            PASS=$((PASS+1))
         else
             fail "${dir} not writable — sudo chown -R ${ws_u}:${ws_u} ${dir}"; FAIL=$((FAIL+1))
         fi
@@ -117,7 +119,7 @@ case "$WS" in
             pass "Nginx vhost enabled"; PASS=$((PASS+1))
         elif [[ -f /etc/nginx/sites-available/${APP_NAME} ]]; then
             if try_fix "vhost not enabled" sudo ln -sf "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/" && sudo systemctl reload nginx; then
-                pass "Nginx vhost enabled (fixed)"; PASS=$((PASS+1))
+                PASS=$((PASS+1))
             else
                 warn "Vhost exists but not enabled — sudo ln -sf ../sites-available/${APP_NAME} /etc/nginx/sites-enabled/"; WARN=$((WARN+1))
             fi
@@ -131,7 +133,7 @@ case "$WS" in
             pass "Apache vhost enabled"; PASS=$((PASS+1))
         elif [[ -f /etc/apache2/sites-available/${APP_NAME}.conf ]]; then
             if try_fix "vhost not enabled" sudo a2ensite "${APP_NAME}.conf" && sudo systemctl reload apache2; then
-                pass "Apache vhost enabled (fixed)"; PASS=$((PASS+1))
+                PASS=$((PASS+1))
             else
                 warn "Vhost exists but not enabled — sudo a2ensite ${APP_NAME}.conf"; WARN=$((WARN+1))
             fi
@@ -142,7 +144,7 @@ case "$WS" in
             pass "Apache SSL module enabled"; PASS=$((PASS+1))
         else
             if try_fix "SSL module not enabled" sudo a2enmod ssl && sudo systemctl reload apache2; then
-                pass "SSL module enabled (fixed)"; PASS=$((PASS+1))
+                PASS=$((PASS+1))
             else
                 warn "SSL module not enabled — sudo a2enmod ssl"; WARN=$((WARN+1))
             fi
@@ -186,7 +188,7 @@ if ! $CRON_FOUND; then
     if $FIX_MODE; then
         CURRENT=$(sudo crontab -u "$WS_USER" -l 2>/dev/null || true)
         { echo "$CURRENT"; echo "$CRON_JOB"; } | sudo crontab -u "$WS_USER" - 2>/dev/null
-        pass "Cron auto-sync added for user ${WS_USER} (fixed)"; PASS=$((PASS+1)); FIXED=$((FIXED+1))
+        fixed "Cron auto-sync added for user ${WS_USER}"; PASS=$((PASS+1)); FIXED=$((FIXED+1))
     else
         fail "Cron auto-sync not configured — sudo bash check.sh --fix"; FAIL=$((FAIL+1))
     fi
@@ -206,7 +208,7 @@ if [[ -f "$DB_FILE" ]]; then
         pass "Migrations have been run"; PASS=$((PASS+1))
     else
         if $FIX_MODE && php "${APP_DIR}/artisan" migrate --force --quiet 2>/dev/null; then
-            pass "Migrations run (fixed)"; PASS=$((PASS+1)); FIXED=$((FIXED+1))
+            fixed "Migrations run"; PASS=$((PASS+1)); FIXED=$((FIXED+1))
         else
             fail "Migrations not run — php artisan migrate --force"; FAIL=$((FAIL+1))
         fi
