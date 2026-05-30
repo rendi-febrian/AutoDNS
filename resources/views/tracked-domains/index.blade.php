@@ -71,15 +71,15 @@
                     <div class="space-y-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-400 mb-1.5">Source</label>
-                            <select name="config_type" id="configType" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-200 text-sm focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all duration-200">
+                            <select name="config_type" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-200 text-sm focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all duration-200">
                                 <option value="nginx">Nginx (sites-enabled)</option>
                                 <option value="apache">Apache (sites-enabled)</option>
                                 <option value="manual">Manual Paste</option>
                             </select>
                         </div>
-                        <div id="manualInput">
-                            <label class="block text-xs font-medium text-gray-400 mb-1.5">Domain List <span class="text-gray-600">(1 per line)</span></label>
-                            <textarea name="config_content" rows="5" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all duration-200" placeholder="example.com&#10;www.example.com&#10;app.example.com"></textarea>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1.5">Config Content <span class="text-gray-600">(paste config jika auto-detect gagal)</span></label>
+                            <textarea name="config_content" rows="5" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all duration-200" placeholder="# Paste isi file konfigurasi web server atau domain list (1 per line)&#10;server {&#10;    server_name example.com www.example.com;&#10;    ..."></textarea>
                         </div>
                     </div>
                     <button type="submit" class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-white text-sm font-semibold hover:from-violet-400 hover:to-purple-400 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-violet-500/10">

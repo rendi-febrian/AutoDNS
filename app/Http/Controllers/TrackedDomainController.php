@@ -138,7 +138,7 @@ class TrackedDomainController extends Controller
     {
         $validated = $request->validate([
             'config_type' => 'required|in:nginx,apache,manual',
-            'config_content' => 'required_if:config_type,manual|string',
+            'config_content' => 'nullable|string',
         ]);
 
         $parser = new ConfigParserService;
@@ -146,22 +146,23 @@ class TrackedDomainController extends Controller
 
         if ($validated['config_type'] === 'nginx') {
             $domains = $parser->getNginxSitesEnabled();
-            if (empty($domains)) {
-                $parsed = $parser->parseNginxConfig($validated['config_content'] ?? '');
-                $domains = $parsed;
+            if (empty($domains) && !empty($validated['config_content'])) {
+                $domains = $parser->parseNginxConfig($validated['config_content']);
             }
         } elseif ($validated['config_type'] === 'apache') {
             $domains = $parser->getApacheSitesEnabled();
-            if (empty($domains)) {
-                $parsed = $parser->parseApacheConfig($validated['config_content'] ?? '');
-                $domains = $parsed;
+            if (empty($domains) && !empty($validated['config_content'])) {
+                $domains = $parser->parseApacheConfig($validated['config_content']);
             }
         } else {
-            $domains = array_filter(array_map('trim', explode("\n", $validated['config_content'])));
+            $domains = array_filter(array_map('trim', explode("\n", $validated['config_content'] ?? '')));
         }
 
         if (empty($domains)) {
-            return back()->with('error', 'No domains found in config.');
+            $hint = $validated['config_type'] === 'manual'
+                ? 'Paste domain list atau konfigurasi di textarea.'
+                : 'PHP tidak bisa baca /etc/*/sites-enabled/ (open_basedir/permission). Coba paste konfigurasi langsung.';
+            return back()->with('error', 'No domains found. ' . $hint);
         }
 
         $imported = 0;
