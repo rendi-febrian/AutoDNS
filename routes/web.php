@@ -37,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/{trackedDomain}', [TrackedDomainController::class, 'destroy'])->name('destroy');
         Route::post('/sync-all', [TrackedDomainController::class, 'syncAll'])->name('sync-all');
         Route::post('/import-config', [TrackedDomainController::class, 'importConfig'])->name('import-config');
+        Route::post('/resolve-ips', [TrackedDomainController::class, 'resolveIps'])->name('resolve-ips');
     });
 
     // DNS Update (Manual)

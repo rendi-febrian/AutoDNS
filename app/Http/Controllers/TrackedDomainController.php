@@ -198,4 +198,32 @@ class TrackedDomainController extends Controller
 
         return back()->with('success', "Imported {$imported} domains" . ($skipped > 0 ? ", {$skipped} skipped (duplicates)" : ''));
     }
+
+    public function resolveIps(): RedirectResponse
+    {
+        $domains = TrackedDomain::all();
+        if ($domains->isEmpty()) {
+            return back()->with('error', 'No tracked domains to resolve.');
+        }
+
+        $resolved = 0;
+        $failed = 0;
+
+        foreach ($domains as $domain) {
+            $records = @dns_get_record($domain->domain_name, DNS_A);
+            $ip = $records[0]['ip'] ?? null;
+
+            if ($ip) {
+                $domain->update(['ip_address' => $ip]);
+                $resolved++;
+            } else {
+                $failed++;
+            }
+        }
+
+        $msg = "Resolved {$resolved} domains via DNS.";
+        if ($failed > 0) $msg .= " {$failed} failed (no A record found).";
+
+        return back()->with('success', $msg);
+    }
 }

@@ -6,13 +6,22 @@
                 <h1 class="text-2xl font-bold text-white tracking-tight">Tracked Domains</h1>
                 <p class="text-gray-500 text-sm mt-1">Domain yang auto-sync A record ke IP server</p>
             </div>
-            <form action="{{ route('tracked-domains.sync-all') }}" method="POST">
-                @csrf
-                <button type="submit" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:from-blue-400 hover:to-cyan-400 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-blue-500/10">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Sync All to Server IP
-                </button>
-            </form>
+            <div class="flex items-center gap-3">
+                <form action="{{ route('tracked-domains.resolve-ips') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-800/50 border border-gray-700/50 text-gray-300 text-sm font-semibold hover:bg-gray-700/50 hover:border-gray-600/50 active:scale-[0.98] transition-all duration-200">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        Resolve DNS
+                    </button>
+                </form>
+                <form action="{{ route('tracked-domains.sync-all') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:from-blue-400 hover:to-cyan-400 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-blue-500/10">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Sync All to Server IP
+                    </button>
+                </form>
+            </div>
         </div>
 
         {{-- Add + Import --}}
@@ -141,13 +150,5 @@
         </div>
     </div>
 
-    @push('scripts')
-    <script>
-        document.getElementById('configType')?.addEventListener('change', function() {
-            const manualInput = document.getElementById('manualInput');
-            manualInput.style.display = this.value === 'manual' ? 'block' : 'none';
-        });
-        document.getElementById('configType')?.dispatchEvent(new Event('change'));
-    </script>
-    @endpush
+
 </x-app-layout>
