@@ -119,36 +119,53 @@ else
 fi
 
 # --- Node.js & NPM ---
-info "Memeriksa Node.js..."
+NODE_REQUIRED="22"
+info "Memeriksa Node.js (v${NODE_REQUIRED}+)..."
 
-# Cek NVM dulu
-NVM_NODE=""
+USE_NVM=false
 if [[ -f "${HOME}/.nvm/nvm.sh" ]]; then
     source "${HOME}/.nvm/nvm.sh" --no-use 2>/dev/null || true
-    if command -v node &>/dev/null; then
-        NVM_NODE="yes"
-        ok "NVM terdeteksi, Node.js $(node -v) via NVM"
-    fi
+    USE_NVM=true
+    ok "NVM terdeteksi"
 fi
 
-if [[ -z "$NVM_NODE" ]] && ! command -v node &>/dev/null; then
-    warn "Node.js/NPM belum terinstall. Menginstall dari repo..."
+node_version_ok() {
+    [[ -z "$1" ]] && return 1
+    local maj
+    maj=$(echo "$1" | cut -d. -f1)
+    [[ "$maj" -ge "$NODE_REQUIRED" ]]
+}
+
+if $USE_NVM; then
+    CURRENT_NODE=$(nvm current 2>/dev/null || echo "none")
+    CURRENT_NODE="${CURRENT_NODE#v}"
+
+    if [[ "$CURRENT_NODE" == "none" ]] || ! node_version_ok "$CURRENT_NODE"; then
+        warn "Node.js v${NODE_REQUIRED}+ belum terinstall via NVM. Menginstall..."
+        nvm install "$NODE_REQUIRED" >/dev/null 2>&1
+        nvm use "$NODE_REQUIRED" >/dev/null 2>&1
+    else
+        nvm use "$CURRENT_NODE" >/dev/null 2>&1
+    fi
+    ok "Node.js $(node -v) + NPM $(npm -v) via NVM"
+elif ! command -v node &>/dev/null || ! node_version_ok "$(node -v | cut -c2-)"; then
+    warn "Node.js v${NODE_REQUIRED}+ belum terinstall. Menginstall dari repo..."
     case "$PKG" in
         apt)
             install_pkgs ca-certificates curl gnupg
             mkdir -p /etc/apt/keyrings
             curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-            echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+            echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_REQUIRED}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
             apt-get update -qq
             install_pkgs nodejs
             ;;
         dnf)
-            dnf module enable -y nodejs:22 >/dev/null 2>&1 || true
+            dnf module enable -y "nodejs:${NODE_REQUIRED}" >/dev/null 2>&1 || true
             install_pkgs nodejs
             ;;
     esac
     ok "Node.js $(node -v) + NPM $(npm -v) terinstall"
-elif [[ -z "$NVM_NODE" ]]; then
+else
     ok "Node.js $(node -v) + NPM $(npm -v) sudah terinstall"
 fi
 
@@ -242,8 +259,9 @@ ok "APP_KEY generated"
 
 # NPM build
 info "Menjalankan npm install & build..."
-sudo -u "${APP_USER}" npm install --silent 2>/dev/null
-sudo -u "${APP_USER}" npm run build --silent 2>/dev/null
+npm install --silent 2>/dev/null
+npm run build --silent 2>/dev/null
+chown -R "${APP_USER}:${APP_USER}" public/build 2>/dev/null || true
 ok "Frontend siap"
 
 # Migrate
