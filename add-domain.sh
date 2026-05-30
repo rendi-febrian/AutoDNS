@@ -234,29 +234,6 @@ EOF
         sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
         ok "Web server reloaded"
     fi
-            if ! grep -q "ssl_certificate_key.*${DOMAIN}" /etc/nginx/sites-available/autodns; then
-                sudo sed -i "/server_name.*${DOMAIN}/a\    ssl_certificate ${LE_DIR}/fullchain.pem;\n    ssl_certificate_key ${LE_DIR}/privkey.pem;" /etc/nginx/sites-available/autodns
-            fi
-            ok "Nginx SSL config added"
-        elif [[ "$WS_PLUGIN" == "apache" ]]; then
-            # Aktifkan mod ssl & buat SSL virtualhost
-            sudo a2enmod ssl >/dev/null 2>&1 || true
-            if ! grep -q "SSLEngine" /etc/apache2/sites-available/autodns.conf; then
-                sudo sed -i "/ServerName ${DOMAIN}/a\    SSLEngine on\n    SSLCertificateFile ${LE_DIR}/fullchain.pem\n    SSLCertificateKeyFile ${LE_DIR}/privkey.pem" /etc/apache2/sites-available/autodns.conf
-            fi
-            if ! grep -q "<VirtualHost \*:443>" /etc/apache2/sites-available/autodns.conf; then
-                # Duplikat vhost buat port 443
-                sudo sed -i "s/<VirtualHost \*:${APP_PORT}>/<VirtualHost *:${APP_PORT}>\n<VirtualHost *:443>\n    ServerName ${DOMAIN}\n    SSLEngine on\n    SSLCertificateFile ${LE_DIR}/fullchain.pem\n    SSLCertificateKeyFile ${LE_DIR}/privkey.pem\n    <IfModule mod_rewrite.c>\n        RewriteEngine On\n        RewriteCond %{HTTPS} off\n        RewriteRule ^ https:\/\/%{HTTP_HOST}%{REQUEST_URI} [L,R=301]\n    <\/IfModule>\n<\/VirtualHost>/" /etc/apache2/sites-available/autodns.conf
-            fi
-            if ! grep -q "^Listen 443" /etc/apache2/ports.conf 2>/dev/null; then
-                echo "Listen 443" | sudo tee -a /etc/apache2/ports.conf >/dev/null
-            fi
-            ok "Apache SSL config added"
-        fi
-
-        sudo systemctl reload "$WS_PLUGIN" 2>/dev/null || true
-        ok "Web server reloaded"
-    fi
 
     # Auto-renew cron
     if ! systemctl is-active --quiet certbot.timer 2>/dev/null && ! systemctl is-active --quiet certbot-renew.timer 2>/dev/null; then
