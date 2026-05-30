@@ -163,6 +163,8 @@ class TrackedDomainController extends Controller
             $account = $zone->cloudflareAccount;
 
             if ($record->content === $ip) {
+                $domain->update(['last_synced_at' => now()]);
+                $record->update(['synced_at' => now()]);
                 continue;
             }
 
