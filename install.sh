@@ -274,8 +274,10 @@ chown -R "${APP_USER}:${APP_USER}" storage bootstrap/cache "$DB_FILE"
 
 # Composer
 info "Menjalankan composer install..."
-sudo -u "${APP_USER}" composer install --no-interaction --prefer-dist --no-dev -q
+composer install --no-interaction --prefer-dist --no-dev -q
 ok "Composer selesai"
+# Pastikan vendor/ terbaca web server
+chmod -R o+r vendor/ 2>/dev/null || true
 
 # Generate key
 php artisan key:generate --force --quiet
