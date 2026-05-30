@@ -113,25 +113,21 @@
                             </td>
                             <td class="px-5 py-3.5 text-center text-gray-500 text-xs">{{ $record->ttl === 120 ? 'Auto' : $record->ttl . 's' }}</td>
                             <td class="px-5 py-3.5 text-center">
-                                @if($record->type === 'A')
-                                    @if($isTracked)
-                                    <span class="inline-flex items-center gap-1 text-[11px] text-emerald-400">
-                                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        Tracked
-                                    </span>
-                                    @else
-                                    <form action="{{ route('tracked-domains.store') }}" method="POST" class="inline">
-                                        @csrf
-                                        <input type="hidden" name="domain_name" value="{{ $record->name }}">
-                                        <input type="hidden" name="zone_name" value="{{ $zone->name }}">
-                                        <input type="hidden" name="dns_record_id" value="{{ $record->id }}">
-                                        <button type="submit" class="text-[11px] px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 active:scale-[0.98] transition-all">
-                                            + Track
-                                        </button>
-                                    </form>
-                                    @endif
+                                @if($isTracked)
+                                <span class="inline-flex items-center gap-1 text-[11px] text-emerald-400">
+                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Tracked
+                                </span>
                                 @else
-                                    <span class="text-[11px] text-gray-600">—</span>
+                                <form action="{{ route('tracked-domains.store') }}" method="POST" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="domain_name" value="{{ $record->name }}">
+                                    <input type="hidden" name="zone_name" value="{{ $zone->name }}">
+                                    <input type="hidden" name="dns_record_id" value="{{ $record->id }}">
+                                    <button type="submit" class="text-[11px] px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 active:scale-[0.98] transition-all">
+                                        + Track
+                                    </button>
+                                </form>
                                 @endif
                             </td>
                             <td class="px-5 py-3.5 text-right text-gray-600 text-xs">{{ $record->synced_at?->diffForHumans() ?? 'Never' }}</td>

@@ -103,23 +103,21 @@ class CloudflareAccountController extends Controller
         );
 
         $recordsResult = $service->getDnsRecords($zoneId);
-        if ($recordsResult['success']) {
-            foreach ($recordsResult['result'] as $recordData) {
-                $zone->dnsRecords()->updateOrCreate(
-                    ['record_id' => $recordData['id']],
-                    [
-                        'type' => $recordData['type'],
-                        'name' => $recordData['name'],
-                        'content' => $recordData['content'],
-                        'proxied' => $recordData['proxied'] ?? false,
-                        'ttl' => $recordData['ttl'] ?? 120,
-                        'synced_at' => now(),
-                    ]
-                );
-            }
+        if (!isset($recordsResult['success']) || !$recordsResult['success']) {
+            return to_route('zones.records', $zone)->with('warning', 'Zone tersimpan tapi gagal sync records: ' . ($recordsResult['errors'][0]['message'] ?? 'Unknown error'));
+        }
+
+        app(DnsController::class)->syncRecordPage($zone, $recordsResult);
+
+        $page = 2;
+        while (isset($recordsResult['result_info']['total_pages']) && $page <= $recordsResult['result_info']['total_pages']) {
+            $pageResult = $service->getDnsRecords($zoneId, $page);
+            if (!$pageResult['success']) break;
+            app(DnsController::class)->syncRecordPage($zone, $pageResult);
+            $page++;
         }
 
         return to_route('zones.records', $zone)
-            ->with('success', "Zone {$zoneName} siap. Pilih record A yg mau di-track ke auto-sync.");
+            ->with('success', "Zone {$zoneName} siap. Pilih record yg mau di-track ke auto-sync.");
     }
 }

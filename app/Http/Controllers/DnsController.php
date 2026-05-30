@@ -29,6 +29,21 @@ class DnsController extends Controller
             return back()->with('error', 'Failed to fetch DNS records.');
         }
 
+        $this->syncRecordPage($zone, $result);
+
+        $page = 2;
+        while (isset($result['result_info']['total_pages']) && $page <= $result['result_info']['total_pages']) {
+            $pageResult = $service->getDnsRecords($zone->zone_id, $page);
+            if (!$pageResult['success']) break;
+            $this->syncRecordPage($zone, $pageResult);
+            $page++;
+        }
+
+        return to_route('zones.records', $zone)->with('success', 'DNS records synced.');
+    }
+
+    public function syncRecordPage(Zone $zone, array $result): void
+    {
         foreach ($result['result'] as $recordData) {
             $zone->dnsRecords()->updateOrCreate(
                 ['record_id' => $recordData['id']],
@@ -42,8 +57,6 @@ class DnsController extends Controller
                 ]
             );
         }
-
-        return to_route('zones.records', $zone)->with('success', 'DNS records synced.');
     }
 
     public function createRecord(Request $request, Zone $zone): RedirectResponse

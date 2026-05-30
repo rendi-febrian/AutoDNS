@@ -59,10 +59,11 @@ class CloudflareService
         return $resp->json();
     }
 
-    public function getDnsRecords(string $zoneId): array
+    public function getDnsRecords(string $zoneId, int $page = 1): array
     {
         $resp = $this->request()->get("{$this->baseUrl}/zones/{$zoneId}/dns_records", [
             'per_page' => 100,
+            'page' => $page,
         ]);
         return $resp->json();
     }
