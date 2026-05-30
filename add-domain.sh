@@ -168,7 +168,7 @@ fi
 # ── Add via Artisan ──
 info "Adding domain to tracked domains..."
 cd "$APP_DIR"
-php artisan domain:track "$DOMAIN" --ip="$SERVER_IP"
+sudo -u www-data php artisan domain:track "$DOMAIN" --ip="$SERVER_IP"
 
 echo ""
 ok "Done! ${DOMAIN} is now tracked, SSL-enabled, and will be auto-synced."

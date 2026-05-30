@@ -89,9 +89,32 @@ class DomainTrack extends Command
         // Find local DNS record
         $record = DnsRecord::where('name', $domain)->where('type', 'A')->first();
 
+        // Find zone (local DB → Cloudflare API)
+        $zone = Zone::where('name', $zoneName)->first();
+
+        if (!$zone) {
+            foreach (\App\Models\CloudflareAccount::all() as $account) {
+                $this->line("  [CF]   Searching zones via {$account->name}...");
+                $cf = new CloudflareService($account);
+                $zones = $cf->getZones();
+                if (!isset($zones['success']) || !$zones['success']) continue;
+
+                foreach ($zones['result'] as $z) {
+                    if ($z['name'] === $zoneName) {
+                        $zone = Zone::create([
+                            'cloudflare_account_id' => $account->id,
+                            'zone_id' => $z['id'],
+                            'name' => $z['name'],
+                        ]);
+                        $this->line("  [OK]   Zone {$zoneName} found via Cloudflare API and saved.");
+                        break 2;
+                    }
+                }
+            }
+        }
+
         // If no local record, try to find/create via Cloudflare
         if (!$record) {
-            $zone = Zone::where('name', $zoneName)->first();
             if ($zone && $zone->cloudflareAccount) {
                 $this->line("  [CF]   Checking Cloudflare zone {$zoneName}...");
                 $cf = new CloudflareService($zone->cloudflareAccount);
