@@ -79,25 +79,37 @@ install_pkgs() {
 }
 
 # --- PHP ---
+NEED_PHP_FPM=false
 info "Memeriksa PHP ${PHP_VERSION}..."
 if command -v php &>/dev/null; then
     INSTALLED_PHP=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
     ok "PHP $INSTALLED_PHP sudah terinstall"
     PHP_VERSION="$INSTALLED_PHP"
     PHP_FPM_SERVICE="php${PHP_VERSION}-fpm"
+    # Cek PHP-FPM terpisah
+    if ! command -v "php-fpm${PHP_VERSION}" &>/dev/null && \
+       ! systemctl is-enabled --quiet "$PHP_FPM_SERVICE" 2>/dev/null; then
+        NEED_PHP_FPM=true
+    fi
 else
+    NEED_PHP_FPM=true
     warn "PHP ${PHP_VERSION} belum terinstall. Menginstall..."
     if $INSTALL_PHP_FROM_REPO; then
         install_pkgs software-properties-common
         add-apt-repository -y ppa:ondrej/php >/dev/null 2>&1
         apt-get update -qq
     fi
-    install_pkgs "php${PHP_VERSION}" "php${PHP_VERSION}-fpm" \
+    install_pkgs "php${PHP_VERSION}" \
         "php${PHP_VERSION}-sqlite3" "php${PHP_VERSION}-curl" \
         "php${PHP_VERSION}-mbstring" "php${PHP_VERSION}-xml" \
         "php${PHP_VERSION}-bcmath" "php${PHP_VERSION}-gd"
-    ok "PHP ${PHP_VERSION} + extensions terinstall"
 fi
+
+if $NEED_PHP_FPM; then
+    info "Menginstall PHP-FPM ${PHP_VERSION}..."
+    install_pkgs "${PHP_FPM_SERVICE}"
+fi
+ok "PHP ${PHP_VERSION} + FPM siap"
 
 # --- Composer ---
 info "Memeriksa Composer..."
@@ -201,6 +213,7 @@ case "$WS_CHOICE" in
         WS_DEFAULT_DISABLED="${WS_SITES_ENABLED}/000-default.conf"
         APACHE_MODS_DIR="/etc/apache2/mods-enabled"
         WS_EXTRA="Apache"
+        WS_BIN="apache2"
         ;;
     *)
         WS="nginx"
@@ -211,12 +224,17 @@ case "$WS_CHOICE" in
         WS_VHOST_FILE="${WS_SITES_AVAILABLE}/${APP_NAME}"
         APACHE_MODS_DIR=""
         WS_EXTRA="Nginx"
+        WS_BIN="nginx"
         ;;
 esac
 
-info "Menginstall ${WS_EXTRA}..."
-install_pkgs "$WS_PKG"
-ok "${WS_EXTRA} terinstall"
+if command -v "$WS_BIN" &>/dev/null; then
+    ok "${WS_EXTRA} sudah terinstall"
+else
+    info "Menginstall ${WS_EXTRA}..."
+    install_pkgs "$WS_PKG"
+    ok "${WS_EXTRA} terinstall"
+fi
 
 # ─────────────────────────────────────────────────────
 # 5. Setup Database
