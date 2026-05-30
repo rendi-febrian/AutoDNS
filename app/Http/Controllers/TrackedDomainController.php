@@ -74,7 +74,7 @@ class TrackedDomainController extends Controller
         // Auto-link domains without dns_record_id
         $unlinked = TrackedDomain::whereNull('dns_record_id')->where('is_active', true)->get();
         foreach ($unlinked as $domain) {
-            $zone = Zone::where('name', $domain->zone_name)->first();
+            $zone = $this->resolveZone($domain->zone_name);
             if (!$zone) continue;
 
             // Try local DB first
@@ -122,18 +122,9 @@ class TrackedDomainController extends Controller
 
         if ($domains->isEmpty()) {
             $total = TrackedDomain::count();
-            $debug = '';
-            if ($total > 0) {
-                $sample = TrackedDomain::with('dnsRecord.zone')->latest()->first();
-                $zone = Zone::where('name', $sample->zone_name)->first();
-                $debug = "TOTAL={$total} ZONE_FOUND=" . ($zone ? 'yes' : 'no');
-                if ($zone) {
-                    $debug .= " ZONE_ACCOUNT=" . ($zone->cloudflareAccount ? 'yes' : 'no');
-                }
-                $msg = "No domains with linked DNS records. {$debug}";
-            } else {
-                $msg = 'No tracked domains found. Add domains first.';
-            }
+            $msg = $total > 0
+                ? 'No domains with linked DNS records. Sync zone records first, then run Resolve DNS to link them.'
+                : 'No tracked domains found. Add domains first.';
             return back()->with('error', $msg);
         }
 
@@ -276,7 +267,9 @@ class TrackedDomainController extends Controller
             $needsCfLookup = $dnsIp && CloudflareService::isCloudflareIp($dnsIp);
             $needsCfLink = !$domain->dns_record_id;
 
-            if (($needsCfLookup || $needsCfLink) && $zone = Zone::where('name', $domain->zone_name)->first()) {
+            $zone = $this->resolveZone($domain->zone_name);
+
+            if (($needsCfLookup || $needsCfLink) && $zone) {
                 $account = $zone->cloudflareAccount;
 
                 if ($domain->dnsRecord && $account) {
@@ -286,12 +279,10 @@ class TrackedDomainController extends Controller
                 } elseif ($account) {
                     $cf = new CloudflareService($account);
                     $result = $cf->getDnsRecords($zone->zone_id);
-                    $matched = [];
                     foreach ($result['result'] ?? [] as $rec) {
                         $recName = rtrim($rec['name'] ?? '', '.');
                         $domName = rtrim($domain->domain_name, '.');
                         if ($rec['type'] === 'A' && strcasecmp($recName, $domName) === 0) {
-                            $matched[] = $recName;
                             $finalIp = $rec['content'];
                             $dnsRec = DnsRecord::firstOrCreate(
                                 ['record_id' => $rec['id']],
@@ -307,9 +298,6 @@ class TrackedDomainController extends Controller
                             $domain->update(['dns_record_id' => $dnsRec->id]);
                             break;
                         }
-                    }
-                    if (empty($matched) && $needsCfLink) {
-                        return back()->with('error', 'CF API no match for ' . $domain->domain_name . '. Zone: ' . $zone->name . ', Account: ' . ($account->name ?? '?') . ', Records: ' . count($result['result'] ?? []));
                     }
                 }
             }
@@ -328,5 +316,30 @@ class TrackedDomainController extends Controller
         if ($failed > 0) $msg .= " {$failed} failed.";
 
         return back()->with('success', $msg);
+    }
+
+    private function resolveZone(string $zoneName): ?Zone
+    {
+        $zone = Zone::where('name', $zoneName)->first();
+        if ($zone) return $zone;
+
+        foreach (\App\Models\CloudflareAccount::all() as $account) {
+            $cf = new CloudflareService($account);
+            $result = $cf->getZones();
+            if (!isset($result['success']) || !$result['success']) continue;
+
+            foreach ($result['result'] as $z) {
+                if ($z['name'] === $zoneName) {
+                    return Zone::create([
+                        'cloudflare_account_id' => $account->id,
+                        'zone_id' => $z['id'],
+                        'name' => $z['name'],
+                        'status' => $z['status'] ?? 'active',
+                    ]);
+                }
+            }
+        }
+
+        return null;
     }
 }
