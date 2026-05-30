@@ -15,12 +15,14 @@ PHP_SOCKET=$(find /run/php /var/run -name "php*-fpm.sock" 2>/dev/null | head -1)
 
 # Deteksi user web server
 detect_ws_user() {
-    if command -v apache2ctl &>/dev/null; then
-        local u; u=$(apache2ctl -S 2>/dev/null | grep -i "user:" | awk '{print $NF}')
+    if [[ -f /etc/apache2/envvars ]]; then
+        local u; u=$(grep -oP '^export APACHE_RUN_USER=\K.+' /etc/apache2/envvars 2>/dev/null | tr -d '"')
         [[ -n "$u" ]] && echo "$u" && return 0
     fi
     if command -v ps &>/dev/null; then
-        local u; u=$(ps aux 2>/dev/null | grep -E 'apache2|httpd|nginx' | grep -v grep | grep -v root | head -1 | awk '{print $1}')
+        local u; u=$(ps -o user= -C apache2 2>/dev/null | head -1)
+        [[ -n "$u" ]] && echo "$u" && return 0
+        u=$(ps -o user= -C nginx 2>/dev/null | head -1)
         [[ -n "$u" ]] && echo "$u" && return 0
     fi
     echo "www-data"
