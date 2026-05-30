@@ -117,6 +117,9 @@ After install:
 systemctl status nginx    # atau apache2
 systemctl status php8.4-fpm
 
+# Add domain (pastikan A record sudah指向 server IP)
+bash /opt/autodns/add-domain.sh example.com
+
 # Akses web
 open http://<server-ip>:26298
 ```
@@ -211,13 +214,14 @@ Before using the app, you need to create an API Token in your Cloudflare dashboa
 ### Quick Walkthrough
 
 | Step | Action | Description |
-|---|---|---|
+|---|---|---|---|
 | 1 | Register / Login | Create your first account |
 | 2 | Connect Cloudflare | Enter API Token → auto-detect name & email |
 | 3 | Browse Zones | View all zones from Cloudflare API |
 | 4 | Sync DNS Records | Pull records into database |
 | 5 | Track Domains | Click **+ Track** on A records you want to auto-sync |
-| 6 | Sync All | Click **Sync All to Server IP** or set up cron |
+| 6 | **Add Domain** (CLI) | `bash add-domain.sh example.com` — auto-checks DNS & links record |
+| 7 | Sync All | Click **Sync All to Server IP** or set up cron |
 
 ### Detailed Guides
 
@@ -236,6 +240,27 @@ Before using the app, you need to create an API Token in your Cloudflare dashboa
 | Tracked Domains | `/tracked-domains` | Manage auto-sync list, sync all, import config |
 | DNS Update | `/dns/update` | Manual single or bulk DNS update |
 | Activity Logs | `/logs` | Full history of all DNS updates |
+
+## CLI — Add a Domain
+
+Tambahkan domain ke tracked domains langsung dari terminal. Script akan:
+
+1. Cek A record domain → harus指向 server IP
+2. Cari zone di Cloudflare, buat A record kalau belum ada
+3. Link ke tracked domains (auto-sync langsung aktif)
+
+```bash
+cd /opt/autodns
+
+# Tambah domain (gagal kalau DNS belum指向 IP server)
+bash add-domain.sh example.com
+
+# Paksa tambah meski DNS belum指向
+php artisan domain:track example.com --force
+
+# Spesifik zone & IP
+php artisan domain:track example.co.id --zone=example.co.id --ip=103.x.x.x
+```
 
 ---
 
@@ -287,7 +312,9 @@ There is **no public REST API** — all operations are performed via the web UI 
 
 ```
 ├── app/
-│   ├── Console/Commands/AutoSyncDns.php    # dns:auto-sync artisan command
+│   ├── Console/Commands/
+│   │   ├── AutoSyncDns.php                  # dns:auto-sync artisan command
+│   │   └── DomainTrack.php                  # domain:track artisan command
 │   ├── Http/Controllers/
 │   │   ├── CloudflareAccountController.php  # API token management
 │   │   ├── DnsController.php                # DNS records & updates
@@ -310,6 +337,7 @@ There is **no public REST API** — all operations are performed via the web UI 
 ├── MVP.md                                   # Architecture documentation
 ├── install.sh                               # One-click install script
 ├── auto-dns-sync.sh                         # Cron wrapper script
+├── add-domain.sh                            # CLI: check & add domain to tracking
 └── README.md                                # This file
 ```
 
