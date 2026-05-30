@@ -11,4 +11,4 @@ if [ -z "$PHP_BIN" ]; then
 fi
 
 cd "$SCRIPT_DIR" || exit 1
-$PHP_BIN artisan dns:auto-sync >> "$SCRIPT_DIR/storage/logs/dns-sync.log" 2>&1
+$PHP_BIN artisan dns:auto-sync --force >> "$SCRIPT_DIR/storage/logs/dns-sync.log" 2>&1
