@@ -158,28 +158,43 @@
     </div>
 
     {{-- Edit Modal --}}
-    <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div class="w-full max-w-lg mx-4 rounded-2xl bg-gray-900 border border-gray-700/50 shadow-2xl">
-            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-white">Edit DNS Record</h3>
-                <button onclick="closeEdit()" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-gray-200 transition-all">
+    <div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="w-full max-w-xl mx-auto rounded-2xl bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800/60 shadow-2xl shadow-black/50">
+            {{-- Header --}}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-white">Edit DNS Record</h3>
+                        <p class="text-xs text-gray-500" id="editRecordSubtitle">Update record details</p>
+                    </div>
+                </div>
+                <button onclick="closeEdit()" class="p-1.5 rounded-lg hover:bg-gray-800 text-gray-600 hover:text-gray-300 transition-all">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <form id="editForm" method="POST" class="p-5 space-y-4">
+
+            {{-- Form --}}
+            <form id="editForm" method="POST" class="p-6 space-y-5">
                 @csrf
                 @method('PUT')
+
                 @if($errors->any())
-                <div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                <div class="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                    <p class="text-xs font-medium text-red-400 mb-1">Validation errors:</p>
                     @foreach($errors->all() as $error)
-                    <p>{{ $error }}</p>
+                    <p class="text-xs text-red-300/80">{{ $error }}</p>
                     @endforeach
                 </div>
                 @endif
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-400 mb-1.5">Type</label>
-                        <select name="type" id="editType" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+
+                {{-- Type + TTL --}}
+                <div class="grid grid-cols-5 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-400 mb-1.5">Record Type</label>
+                        <select name="type" id="editType" class="w-full px-3 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all cursor-pointer">
                             <option value="A">A</option>
                             <option value="AAAA">AAAA</option>
                             <option value="CNAME">CNAME</option>
@@ -188,32 +203,63 @@
                             <option value="NS">NS</option>
                         </select>
                     </div>
-                    <div>
+                    <div class="col-span-3">
                         <label class="block text-xs font-medium text-gray-400 mb-1.5">TTL</label>
-                        <select name="ttl" id="editTtl" class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
-                            <option value="120">Auto (120)</option>
-                            <option value="60">1 min</option>
-                            <option value="300">5 min</option>
+                        <select name="ttl" id="editTtl" class="w-full px-3 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all cursor-pointer">
+                            <option value="120">Auto</option>
+                            <option value="60">1 minute</option>
+                            <option value="300">5 minutes</option>
+                            <option value="600">10 minutes</option>
                             <option value="3600">1 hour</option>
                             <option value="86400">24 hours</option>
                         </select>
                     </div>
                 </div>
+
+                {{-- Name --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-400 mb-1.5">Name</label>
-                    <input type="text" name="name" id="editName" required class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600 text-xs select-none pointer-events-none font-mono" id="editNameSuffix"></span>
+                        <input type="text" name="name" id="editName" required
+                            class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                    </div>
                 </div>
+
+                {{-- Content --}}
                 <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1.5">Content</label>
-                    <input type="text" name="content" id="editContent" required class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
+                    <label class="block text-xs font-medium text-gray-400 mb-1.5">
+                        Content <span class="text-gray-600 font-normal" id="editContentHint">(IP address for A records)</span>
+                    </label>
+                    <input type="text" name="content" id="editContent" required
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-gray-800/80 border border-gray-700/60 text-gray-200 text-sm placeholder-gray-600 font-mono focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all">
                 </div>
-                <label class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 text-sm cursor-pointer hover:bg-gray-800/80 transition-all">
-                    <input type="checkbox" name="proxied" id="editProxied" value="1" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/20">
-                    <span>Proxy through Cloudflare</span>
-                </label>
-                <button type="submit" class="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:from-blue-400 hover:to-cyan-400 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-blue-500/10">
-                    Save Changes
-                </button>
+
+                {{-- Proxy --}}
+                <div class="flex items-center gap-3 p-3 rounded-xl bg-gray-800/40 border border-gray-700/40">
+                    <div class="relative">
+                        <input type="checkbox" name="proxied" id="editProxied" value="1"
+                            class="peer w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/20 cursor-pointer">
+                        <div class="absolute inset-0 rounded peer-checked:bg-blue-500/10 -m-1"></div>
+                    </div>
+                    <div class="flex-1">
+                        <label for="editProxied" class="text-sm font-medium text-gray-300 cursor-pointer">Proxy through Cloudflare</label>
+                        <p class="text-[11px] text-gray-600">Orange cloud — hides origin IP, enables DDoS protection & CDN</p>
+                    </div>
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg {{-- dynamic via js --}}" id="editProxyIcon">🔵</div>
+                </div>
+
+                {{-- Actions --}}
+                <div class="flex items-center gap-3 pt-1">
+                    <button type="button" onclick="closeEdit()"
+                        class="flex-1 px-4 py-2.5 rounded-xl bg-gray-800/60 border border-gray-700/50 text-gray-400 text-sm font-medium hover:text-gray-200 hover:bg-gray-800 active:scale-[0.98] transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-semibold hover:from-blue-400 hover:to-cyan-400 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-blue-500/10">
+                        Save Changes
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -226,23 +272,66 @@
         function openEdit(id) {
             const rec = records.find(r => r.id === id);
             if (!rec) return;
+
             document.getElementById('editForm').action = baseRoute + '/' + id;
-            document.getElementById('editType').value = rec.type;
+            document.getElementById('editRecordSubtitle').textContent = rec.name;
+
+            const typeEl = document.getElementById('editType');
+            typeEl.value = rec.type;
+            typeEl.dispatchEvent(new Event('change'));
+
             document.getElementById('editName').value = rec.name;
             document.getElementById('editContent').value = rec.content;
             document.getElementById('editTtl').value = rec.ttl;
             document.getElementById('editProxied').checked = rec.proxied;
-            document.getElementById('editModal').classList.remove('hidden');
-            document.getElementById('editModal').classList.add('flex');
+
+            updateTypeHint(rec.type);
+            updateProxyIcon(rec.proxied);
+
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('flex'), 10);
         }
 
         function closeEdit() {
-            document.getElementById('editModal').classList.add('hidden');
-            document.getElementById('editModal').classList.remove('flex');
+            const modal = document.getElementById('editModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
+
+        function updateTypeHint(type) {
+            const hints = {
+                'A': '(IPv4 address)',
+                'AAAA': '(IPv6 address)',
+                'CNAME': '(target hostname)',
+                'MX': '(priority target hostname)',
+                'TXT': '(text value)',
+                'NS': '(nameserver hostname)',
+            };
+            document.getElementById('editContentHint').textContent = hints[type] || '';
+        }
+
+        function updateProxyIcon(proxied) {
+            const el = document.getElementById('editProxyIcon');
+            el.textContent = proxied ? '🟠' : '⚪';
+            el.className = 'w-8 h-8 rounded-lg flex items-center justify-center text-lg' +
+                (proxied ? ' bg-amber-500/10' : ' bg-gray-700/30');
+        }
+
+        document.getElementById('editType')?.addEventListener('change', function() {
+            updateTypeHint(this.value);
+        });
+
+        document.getElementById('editProxied')?.addEventListener('change', function() {
+            updateProxyIcon(this.checked);
+        });
 
         document.getElementById('editModal')?.addEventListener('click', function(e) {
             if (e.target === this) closeEdit();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeEdit();
         });
     </script>
     @endpush
