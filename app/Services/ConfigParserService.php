@@ -31,6 +31,8 @@ class ConfigParserService
 
     public function parseApacheConfig(string $content): array
     {
+        $content = $this->resolveApacheDefines($content);
+
         $domains = [];
         preg_match_all('/ServerName\s+(\S+)/i', $content, $matches);
         foreach ($matches[1] as $name) {
@@ -50,6 +52,18 @@ class ConfigParserService
             }
         }
         return array_unique($domains);
+    }
+
+    private function resolveApacheDefines(string $content): string
+    {
+        $defines = [];
+        preg_match_all('/Define\s+(\w+)\s+"([^"]*)"/i', $content, $matches, PREG_SET_ORDER);
+        foreach ($matches as $m) {
+            $defines[$m[1]] = $m[2];
+        }
+        return preg_replace_callback('/\$\{(\w+)\}/', function ($m) use ($defines) {
+            return $defines[$m[1]] ?? $m[0];
+        }, $content);
     }
 
     public function detectZone(string $domain): string
