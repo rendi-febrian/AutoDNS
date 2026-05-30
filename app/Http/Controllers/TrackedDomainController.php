@@ -107,6 +107,31 @@ class TrackedDomainController extends Controller
                 }
             }
 
+            // Create A record in Cloudflare if missing
+            if (!$record && $zone->cloudflareAccount) {
+                $cf = new CloudflareService($zone->cloudflareAccount);
+                $createResult = $cf->createDnsRecord($zone->zone_id, [
+                    'type' => 'A',
+                    'name' => $domain->domain_name,
+                    'content' => $ip,
+                    'ttl' => 120,
+                    'proxied' => false,
+                ]);
+
+                if (isset($createResult['success']) && $createResult['success']) {
+                    $r = $createResult['result'];
+                    $record = DnsRecord::create([
+                        'zone_id' => $zone->id,
+                        'record_id' => $r['id'],
+                        'type' => $r['type'],
+                        'name' => rtrim($r['name'] ?? '', '.'),
+                        'content' => $r['content'],
+                        'ttl' => $r['ttl'],
+                        'proxied' => $r['proxied'] ?? false,
+                    ]);
+                }
+            }
+
             if ($record) {
                 $domain->update([
                     'dns_record_id' => $record->id,
