@@ -211,10 +211,6 @@ else
                     sudo sed -i "/ServerName ${DOMAIN}/a\    SSLEngine on\n    SSLCertificateFile ${LE_DIR}/fullchain.pem\n    SSLCertificateKeyFile ${LE_DIR}/privkey.pem" /etc/apache2/sites-available/autodns.conf
                     ok "SSL injected into Apache vhost"
                 fi
-
-                if ! grep -q "^Listen 443" /etc/apache2/ports.conf 2>/dev/null; then
-                    echo "Listen 443" | sudo tee -a /etc/apache2/ports.conf >/dev/null
-                fi
                 ;;
         esac
 
