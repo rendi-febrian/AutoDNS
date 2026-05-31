@@ -210,16 +210,6 @@ class AutoSyncDns extends Command
                 $this->line("  [OK]   {$domain->domain_name}: already {$ip}");
                 $domain->update(['last_synced_at' => now()]);
                 $record->update(['synced_at' => now()]);
-                DnsUpdateLog::create([
-                    'tracked_domain_id' => $domain->id,
-                    'zone_name' => $record->zone->name,
-                    'record_name' => $record->name,
-                    'record_type' => $record->type,
-                    'old_ip' => $ip,
-                    'new_ip' => $ip,
-                    'status' => 'nochange',
-                    'response_message' => 'IP sudah sesuai',
-                ]);
                 $skippedCount++;
                 continue;
             }
