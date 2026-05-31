@@ -7,6 +7,7 @@ use App\Models\DnsUpdateLog;
 use App\Models\TrackedDomain;
 use App\Models\Zone;
 use App\Services\CloudflareService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -36,6 +37,11 @@ class DashboardController extends Controller
             'zones',
             'serverStats'
         ));
+    }
+
+    public function stats(): JsonResponse
+    {
+        return response()->json($this->getServerStats());
     }
 
     private function getServerStats(): array

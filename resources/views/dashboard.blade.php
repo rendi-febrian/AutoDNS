@@ -91,25 +91,25 @@
         @endif
 
         {{-- Server Monitoring --}}
-        <div>
+        <div id="serverMonitor">
             <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Server Monitoring</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {{-- CPU --}}
                 <div class="rounded-2xl bg-gray-900/30 border border-gray-800/50 p-5 hover:border-gray-700/50 transition-all duration-300">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs text-gray-500 font-medium uppercase tracking-wider">CPU</span>
-                        <span class="text-xs font-mono text-gray-300">{{ $serverStats['cpu'] }}%</span>
+                        <span class="text-xs font-mono text-gray-300" id="statCpu">{{ $serverStats['cpu'] }}%</span>
                     </div>
                     <div class="w-full h-2 rounded-full bg-gray-800 overflow-hidden">
-                        <div class="h-full rounded-full transition-all duration-500 {{ $serverStats['cpu'] > 80 ? 'bg-red-500' : ($serverStats['cpu'] > 50 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $serverStats['cpu'] }}%"></div>
+                        <div id="statCpuBar" class="h-full rounded-full transition-all duration-500 {{ $serverStats['cpu'] > 80 ? 'bg-red-500' : ($serverStats['cpu'] > 50 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $serverStats['cpu'] }}%"></div>
                     </div>
                     <div class="flex items-center gap-2 mt-2">
                         <span class="text-[11px] text-gray-600">Load:</span>
-                        <span class="text-[11px] text-gray-500 font-mono">{{ $serverStats['load'][0] ?? 0 }}</span>
+                        <span class="text-[11px] text-gray-500 font-mono" id="statLoad1">{{ $serverStats['load'][0] ?? 0 }}</span>
                         <span class="text-[11px] text-gray-600">/</span>
-                        <span class="text-[11px] text-gray-500 font-mono">{{ $serverStats['load'][1] ?? 0 }}</span>
+                        <span class="text-[11px] text-gray-500 font-mono" id="statLoad5">{{ $serverStats['load'][1] ?? 0 }}</span>
                         <span class="text-[11px] text-gray-600">/</span>
-                        <span class="text-[11px] text-gray-500 font-mono">{{ $serverStats['load'][2] ?? 0 }}</span>
+                        <span class="text-[11px] text-gray-500 font-mono" id="statLoad15">{{ $serverStats['load'][2] ?? 0 }}</span>
                     </div>
                 </div>
 
@@ -117,15 +117,15 @@
                 <div class="rounded-2xl bg-gray-900/30 border border-gray-800/50 p-5 hover:border-gray-700/50 transition-all duration-300">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs text-gray-500 font-medium uppercase tracking-wider">RAM</span>
-                        <span class="text-xs font-mono text-gray-300">{{ $serverStats['ram_percent'] }}%</span>
+                        <span class="text-xs font-mono text-gray-300" id="statRam">{{ $serverStats['ram_percent'] }}%</span>
                     </div>
                     <div class="w-full h-2 rounded-full bg-gray-800 overflow-hidden">
-                        <div class="h-full rounded-full transition-all duration-500 {{ $serverStats['ram_percent'] > 80 ? 'bg-red-500' : ($serverStats['ram_percent'] > 50 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $serverStats['ram_percent'] }}%"></div>
+                        <div id="statRamBar" class="h-full rounded-full transition-all duration-500 {{ $serverStats['ram_percent'] > 80 ? 'bg-red-500' : ($serverStats['ram_percent'] > 50 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $serverStats['ram_percent'] }}%"></div>
                     </div>
                     <div class="flex items-center gap-2 mt-2">
-                        <span class="text-[11px] text-gray-500 font-mono">{{ number_format($serverStats['ram_used'] / 1073741824, 1) }}GB</span>
+                        <span class="text-[11px] text-gray-500 font-mono" id="statRamUsed">{{ number_format($serverStats['ram_used'] / 1073741824, 1) }}GB</span>
                         <span class="text-[11px] text-gray-600">/</span>
-                        <span class="text-[11px] text-gray-500 font-mono">{{ number_format($serverStats['ram_total'] / 1073741824, 1) }}GB</span>
+                        <span class="text-[11px] text-gray-500 font-mono" id="statRamTotal">{{ number_format($serverStats['ram_total'] / 1073741824, 1) }}GB</span>
                     </div>
                 </div>
 
@@ -133,15 +133,15 @@
                 <div class="rounded-2xl bg-gray-900/30 border border-gray-800/50 p-5 hover:border-gray-700/50 transition-all duration-300">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs text-gray-500 font-medium uppercase tracking-wider">Disk</span>
-                        <span class="text-xs font-mono text-gray-300">{{ $serverStats['disk_percent'] }}%</span>
+                        <span class="text-xs font-mono text-gray-300" id="statDisk">{{ $serverStats['disk_percent'] }}%</span>
                     </div>
                     <div class="w-full h-2 rounded-full bg-gray-800 overflow-hidden">
-                        <div class="h-full rounded-full transition-all duration-500 {{ $serverStats['disk_percent'] > 80 ? 'bg-red-500' : ($serverStats['disk_percent'] > 50 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $serverStats['disk_percent'] }}%"></div>
+                        <div id="statDiskBar" class="h-full rounded-full transition-all duration-500 {{ $serverStats['disk_percent'] > 80 ? 'bg-red-500' : ($serverStats['disk_percent'] > 50 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $serverStats['disk_percent'] }}%"></div>
                     </div>
                     <div class="flex items-center gap-2 mt-2">
-                        <span class="text-[11px] text-gray-500 font-mono">{{ number_format($serverStats['disk_used'] / 1073741824, 1) }}GB</span>
+                        <span class="text-[11px] text-gray-500 font-mono" id="statDiskUsed">{{ number_format($serverStats['disk_used'] / 1073741824, 1) }}GB</span>
                         <span class="text-[11px] text-gray-600">/</span>
-                        <span class="text-[11px] text-gray-500 font-mono">{{ number_format($serverStats['disk_total'] / 1073741824, 1) }}GB</span>
+                        <span class="text-[11px] text-gray-500 font-mono" id="statDiskTotal">{{ number_format($serverStats['disk_total'] / 1073741824, 1) }}GB</span>
                     </div>
                 </div>
 
@@ -151,11 +151,51 @@
                         <span class="text-xs text-gray-500 font-medium uppercase tracking-wider">Uptime</span>
                         <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
                     </div>
-                    <p class="text-xl font-bold text-white font-mono tracking-tight">{{ $serverStats['uptime'] }}</p>
+                    <p class="text-xl font-bold text-white font-mono tracking-tight" id="statUptime">{{ $serverStats['uptime'] }}</p>
                     <p class="text-[11px] text-gray-600 mt-2">Server IP: <span class="text-gray-500 font-mono">{{ $serverIp }}</span></p>
                 </div>
             </div>
         </div>
+
+        @push('scripts')
+        <script>
+        function updateStats() {
+            fetch('{{ route("dashboard.stats") }}')
+                .then(r => r.json())
+                .then(s => {
+                    // CPU
+                    document.getElementById('statCpu').textContent = s.cpu + '%';
+                    const cpuBar = document.getElementById('statCpuBar');
+                    cpuBar.style.width = s.cpu + '%';
+                    cpuBar.className = 'h-full rounded-full transition-all duration-500 ' + (s.cpu > 80 ? 'bg-red-500' : s.cpu > 50 ? 'bg-amber-500' : 'bg-emerald-500');
+                    document.getElementById('statLoad1').textContent = s.load[0];
+                    document.getElementById('statLoad5').textContent = s.load[1];
+                    document.getElementById('statLoad15').textContent = s.load[2];
+
+                    // RAM
+                    document.getElementById('statRam').textContent = s.ram_percent + '%';
+                    const ramBar = document.getElementById('statRamBar');
+                    ramBar.style.width = s.ram_percent + '%';
+                    ramBar.className = 'h-full rounded-full transition-all duration-500 ' + (s.ram_percent > 80 ? 'bg-red-500' : s.ram_percent > 50 ? 'bg-amber-500' : 'bg-emerald-500');
+                    document.getElementById('statRamUsed').textContent = (s.ram_used / 1073741824).toFixed(1) + 'GB';
+                    document.getElementById('statRamTotal').textContent = (s.ram_total / 1073741824).toFixed(1) + 'GB';
+
+                    // Disk
+                    document.getElementById('statDisk').textContent = s.disk_percent + '%';
+                    const diskBar = document.getElementById('statDiskBar');
+                    diskBar.style.width = s.disk_percent + '%';
+                    diskBar.className = 'h-full rounded-full transition-all duration-500 ' + (s.disk_percent > 80 ? 'bg-red-500' : s.disk_percent > 50 ? 'bg-amber-500' : 'bg-emerald-500');
+                    document.getElementById('statDiskUsed').textContent = (s.disk_used / 1073741824).toFixed(1) + 'GB';
+                    document.getElementById('statDiskTotal').textContent = (s.disk_total / 1073741824).toFixed(1) + 'GB';
+
+                    // Uptime
+                    document.getElementById('statUptime').textContent = s.uptime;
+                })
+                .catch(() => {});
+        }
+        setInterval(updateStats, 5000);
+        </script>
+        @endpush
 
         {{-- Zones + Logs --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
